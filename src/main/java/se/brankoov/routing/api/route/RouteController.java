@@ -1,40 +1,32 @@
 package se.brankoov.routing.api.route;
 
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import se.brankoov.routing.domain.route.RouteOptimizationService;
 
 @RestController
 @RequestMapping("/api/routes")
 public class RouteController {
 
+    private static final Logger log = LoggerFactory.getLogger(RouteController.class);
+
+    private final RouteOptimizationService routeService;
+
+    public RouteController(RouteOptimizationService routeService) {
+        this.routeService = routeService;
+    }
+
     @PostMapping("/optimize")
-    public RouteOptimizationResponse optimizeRoute(
-            @RequestBody RouteOptimizationRequest request
-    ) {
-        // Just nu: behåll ordningen som frontend skickar in,
-        // men sätt ett "order"-index på varje stopp.
-        List<StopResponse> ordered = new ArrayList<>();
+    public ResponseEntity<RouteOptimizationResponse> optimize(@RequestBody RouteOptimizationRequest request) {
+        log.info("Received optimize request with {} stops", request.stops().size());
 
-        int index = 0;
-        for (StopRequest stop : request.stops()) {
-            ordered.add(new StopResponse(
-                    stop.id(),
-                    stop.label(),
-                    stop.address(),
-                    stop.latitude(),
-                    stop.longitude(),
-                    index++
-            ));
-        }
+        RouteOptimizationResponse response = routeService.optimize(request);
 
-        return new RouteOptimizationResponse(
-                ordered,
-                ordered.size()
-        );
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(response);
     }
 }
