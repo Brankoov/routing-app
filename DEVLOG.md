@@ -27,4 +27,5 @@
 - Implemented a typed health API client (healthClient.ts) and HealthStatus component to display backend status.
 - Implemented a typed route optimization client (routeClient.ts) and RouteTester component that sends a hard-coded request to POST /api/routes/optimize and renders the ordered stops.
 - Ran into CORS / Spring Security issues when calling the backend from the frontend (fetch to /api/health failed). Fixed it by adding a SecurityConfig with CORS enabled and allowing http://localhost:5173 plus permitAll() on /api/**
+- Added a simple route planner view in the frontend mocked backends POST /api/routes/optimize that shows total stops
 - 

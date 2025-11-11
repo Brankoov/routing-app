@@ -1,3 +1,4 @@
+
 export interface StopRequest {
   id: string;
   label: string;
@@ -6,35 +7,38 @@ export interface StopRequest {
   longitude: number | null;
 }
 
-export interface RouteOptimizationRequest {
-  startAddress: string;
-  endAddress: string;
-  stops: StopRequest[];
-}
-
-export interface StopResponse {
-  id: string;
-  label: string;
-  address: string;
-  latitude: number | null;
-  longitude: number | null;
+export interface OrderedStop extends StopRequest {
   order: number;
 }
 
 export interface RouteOptimizationResponse {
-  orderedStops: StopResponse[];
+  orderedStops: OrderedStop[];
   totalStops: number;
 }
 
-export async function optimizeRoute(
-  payload: RouteOptimizationRequest
-): Promise<RouteOptimizationResponse> {
+export async function optimizeRoute(params: {
+  startAddress: string;
+  endAddress: string;
+  stops: string[]; // bara adresser i UI:t
+}): Promise<RouteOptimizationResponse> {
+  const body = {
+    startAddress: params.startAddress,
+    endAddress: params.endAddress,
+    stops: params.stops.map((address, index) => ({
+      id: String(index + 1),
+      label: `Stop ${index + 1}`,
+      address,
+      latitude: null,
+      longitude: null,
+    })),
+  };
+
   const response = await fetch('http://localhost:8080/api/routes/optimize', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

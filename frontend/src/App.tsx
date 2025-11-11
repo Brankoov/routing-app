@@ -1,6 +1,6 @@
 import './App.css';
 import { HealthStatus } from './components/HealthStatus';
-import { RouteTester } from './components/RouteTester';
+import { RoutePlanner } from './components/RoutePlanner';
 
 function App() {
   return (
@@ -9,7 +9,10 @@ function App() {
       <p>Simple health check to verify backend ↔ frontend integration.</p>
 
       <HealthStatus />
-      <RouteTester />
+
+      <hr style={{ margin: '2rem 0' }} />
+
+      <RoutePlanner />
     </div>
   );
 }
