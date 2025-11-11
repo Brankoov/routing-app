@@ -1,5 +1,6 @@
 package se.brankoov.routing.api.route;
 
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -20,7 +21,9 @@ public class RouteController {
     }
 
     @PostMapping("/optimize")
-    public ResponseEntity<RouteOptimizationResponse> optimize(@RequestBody RouteOptimizationRequest request) {
+    public ResponseEntity<RouteOptimizationResponse> optimize(
+            @Valid @RequestBody RouteOptimizationRequest request
+    ) {
         log.info("Received optimize request with {} stops", request.stops().size());
 
         RouteOptimizationResponse response = routeService.optimize(request);
