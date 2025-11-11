@@ -1,5 +1,6 @@
 import './App.css';
 import { HealthStatus } from './components/HealthStatus';
+import { RouteTester } from './components/RouteTester';
 
 function App() {
   return (
@@ -8,6 +9,7 @@ function App() {
       <p>Simple health check to verify backend ↔ frontend integration.</p>
 
       <HealthStatus />
+      <RouteTester />
     </div>
   );
 }

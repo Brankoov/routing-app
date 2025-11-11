@@ -23,3 +23,8 @@
 - Set up frontend folder with React + Vite in the same repository.
 - Verified Vite dev server runs on http://localhost:5173.
 - Updated roadmap issue #6 (Frontend Map SDK Setup) to include initial health check against /api/health.
+- Added simple React dev UI using Vite to talk to the backend.
+- Implemented a typed health API client (healthClient.ts) and HealthStatus component to display backend status.
+- Implemented a typed route optimization client (routeClient.ts) and RouteTester component that sends a hard-coded request to POST /api/routes/optimize and renders the ordered stops.
+- Ran into CORS / Spring Security issues when calling the backend from the frontend (fetch to /api/health failed). Fixed it by adding a SecurityConfig with CORS enabled and allowing http://localhost:5173 plus permitAll() on /api/**
+- 
