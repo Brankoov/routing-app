@@ -20,3 +20,6 @@
 - Ran ./gradlew test to confirm the service behaves as expected.
 - Introduced RoutingEngine abstraction with MockRoutingEngine implementation so the optimization logic can later be swapped to a real routing provider without changing the controller or DTOs.
 - Added basic CORS configuration so a future React frontend (localhost:5173 and later Render) can call the backend API without CORS issues.
+- Set up frontend folder with React + Vite in the same repository.
+- Verified Vite dev server runs on http://localhost:5173.
+- Updated roadmap issue #6 (Frontend Map SDK Setup) to include initial health check against /api/health.
