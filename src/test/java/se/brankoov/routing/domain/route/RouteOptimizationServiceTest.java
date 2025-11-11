@@ -11,7 +11,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RouteOptimizationServiceTest {
 
-    private final RouteOptimizationService service = new RouteOptimizationService();
+    private final RoutingEngine routingEngine = new MockRoutingEngine();
+    private final RouteOptimizationService service = new RouteOptimizationService(routingEngine);
+
 
     @Test
     void optimize_shouldReturnStopsWithOrderSet() {

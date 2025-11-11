@@ -18,3 +18,5 @@
 - Added Bean Validation annotations to route request DTOs and enabled @Valid in RouteController so invalid input returns 400 Bad Request.
 - Added first unit test for RouteOptimizationService to verify ordering and totalStops.
 - Ran ./gradlew test to confirm the service behaves as expected.
+- Introduced RoutingEngine abstraction with MockRoutingEngine implementation so the optimization logic can later be swapped to a real routing provider without changing the controller or DTOs.
+- Added basic CORS configuration so a future React frontend (localhost:5173 and later Render) can call the backend API without CORS issues.

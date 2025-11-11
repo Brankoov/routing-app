@@ -1,6 +1,6 @@
 package se.brankoov.routing.domain.route;
 
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import se.brankoov.routing.api.route.RouteOptimizationRequest;
 import se.brankoov.routing.api.route.RouteOptimizationResponse;
 import se.brankoov.routing.api.route.StopRequest;
@@ -9,18 +9,13 @@ import se.brankoov.routing.api.route.StopResponse;
 import java.util.Comparator;
 import java.util.List;
 
-@Service
-public class RouteOptimizationService {
+@Component
+public class MockRoutingEngine implements RoutingEngine {
 
-    private final RoutingEngine routingEngine;
-
-    public RouteOptimizationService(RoutingEngine routingEngine) {
-        this.routingEngine = routingEngine;
-    }
-
+    @Override
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
-        // 🔹 Just nu: låtsas-optimering.
-        // Sorterar bara stoppen på id och bygger ett svar.
+        // 🔹 Fejk-optimering för nu:
+        // Sortera på id och sätt order = index.
 
         List<StopResponse> ordered = request.stops().stream()
                 .sorted(Comparator.comparing(StopRequest::id))
@@ -30,18 +25,16 @@ public class RouteOptimizationService {
                         stop.address(),
                         stop.latitude(),
                         stop.longitude(),
-                        0 // vi sätter rätt order strax
+                        0 // sätter korrekt order strax
                 ))
                 .toList();
 
-        // sätt "order" fältet 0,1,2,...
         List<StopResponse> withOrder = addOrderIndex(ordered);
 
-        return routingEngine.optimize(request);
+        return new RouteOptimizationResponse(withOrder, withOrder.size());
     }
 
     private List<StopResponse> addOrderIndex(List<StopResponse> stops) {
-        // bygger en ny lista där order = index i listan
         return java.util.stream.IntStream.range(0, stops.size())
                 .mapToObj(i -> {
                     StopResponse s = stops.get(i);
