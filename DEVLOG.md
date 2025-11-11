@@ -16,3 +16,5 @@
 - Introduced RouteOptimizationService for route logic and simplified RouteController.
 - Confirmed that the /api/routes/optimize endpoint still works as before with test data.
 - Added Bean Validation annotations to route request DTOs and enabled @Valid in RouteController so invalid input returns 400 Bad Request.
+- Added first unit test for RouteOptimizationService to verify ordering and totalStops.
+- Ran ./gradlew test to confirm the service behaves as expected.
