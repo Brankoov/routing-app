@@ -5,6 +5,7 @@ import {
   optimizeRoute,
   type RouteOptimizationResponse,
 } from '../api/routeClient';
+import RouteMap from './RouteMap';
 
 type LoadState = 'idle' | 'loading' | 'ok' | 'error';
 
@@ -126,19 +127,29 @@ export function RoutePlanner() {
         </p>
       )}
 
-      {result && state === 'ok' && (
-        <div style={{ marginTop: '1.5rem' }}>
-          <h3>Result</h3>
-          <p>Total stops: {result.totalStops}</p>
-          <ul>
-            {result.orderedStops.map((stop) => (
-              <li key={stop.id}>
-                #{stop.order} – {stop.address}
-              </li>
-            ))}
-          </ul>
+     {result && state === 'ok' && (
+  <div style={{ marginTop: '1.5rem' }}>
+    <h3>Result</h3>
+    <p>Total stops: {result.totalStops}</p>
+    <ul>
+      {result.orderedStops.map((stop) => (
+        <li key={stop.id}>
+          #{stop.order} – {stop.address}
+        </li>
+      ))}
+    </ul>
+
+    {/* KARTAN: visar start -> stops -> end */}
+    <RouteMap
+      startAddress={startAddress}
+      endAddress={endAddress}
+      stops={result.orderedStops}
+    />
         </div>
       )}
     </section>
+    
+
+
   );
 }

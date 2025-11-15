@@ -47,3 +47,11 @@ export async function optimizeRoute(params: {
 
   return response.json() as Promise<RouteOptimizationResponse>;
 }
+export type OptimizedStop = {
+  id: string;
+  order: number;
+  address: string;
+  longitude: number | null;
+  latitude: number | null;
+};
+
