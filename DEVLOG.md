@@ -46,3 +46,7 @@
 - Fixed the /api/routes/optimize MockMvc test by adding a CSRF token (with(csrf())) to the POST request. Spring Security was returning 403 Forbidden due to missing CSRF protection, even with an authenticated mock user.
 - Changed RouteOptimizationService so each stop gets coordinates if they are missing.
   After the routing engine sets the stop order, the service checks every stop. If a stop has no latitude or longitude, it asks GeocodingService for the coordinates and fills them in. If geocoding fails, the stop keeps null values instead of crashing the app.
+- Added a unit test for RouteOptimizationService.
+  The test uses mocked RoutingEngine and GeocodingService.
+  It checks that when a stop has no coordinates, the service calls geocodeFirst(address) and fills in latitude and longitude in the final route response.
+- 
