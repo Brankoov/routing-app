@@ -52,4 +52,6 @@
 - Added a new OpenRouteServiceRoutingEngine class as the future routing engine.
   For now it only returns the stops in the same order as the request.
   This prepares the project for plugging in real ORS routing later.
+- Wired OpenRouteServiceRoutingEngine to use the shared orsWebClient from OrsConfig.
+  The routing engine still returns stops in the original order, but it now has access to the ORS WebClient, so it’s ready for a real directions call later.
 - 

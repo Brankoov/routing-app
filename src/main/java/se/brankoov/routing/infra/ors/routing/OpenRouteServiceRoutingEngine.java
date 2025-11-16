@@ -1,4 +1,5 @@
 package se.brankoov.routing.infra.ors.routing;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import org.springframework.stereotype.Component;
 import se.brankoov.routing.api.route.RouteOptimizationRequest;
@@ -18,8 +19,15 @@ import java.util.stream.IntStream;
 @Component
 public class OpenRouteServiceRoutingEngine implements RoutingEngine {
 
+    private final WebClient orsWebClient;
+
+    public OpenRouteServiceRoutingEngine(WebClient orsWebClient) {
+        this.orsWebClient = orsWebClient;
+    }
+
     @Override
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
+        // just nu: fortfarande bara enkel ordning, ingen riktig ORS-anrop än
 
         List<StopResponse> stops = IntStream
                 .range(0, request.stops().size())
@@ -31,12 +39,12 @@ public class OpenRouteServiceRoutingEngine implements RoutingEngine {
                             s.address(),
                             s.latitude(),
                             s.longitude(),
-                            i   // samma ordning som i listan
+                            i
                     );
                 })
                 .toList();
 
         return new RouteOptimizationResponse(stops, stops.size());
     }
-
 }
+
