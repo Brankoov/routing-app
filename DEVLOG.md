@@ -49,4 +49,7 @@
 - Added a unit test for RouteOptimizationService.
   The test uses mocked RoutingEngine and GeocodingService.
   It checks that when a stop has no coordinates, the service calls geocodeFirst(address) and fills in latitude and longitude in the final route response.
+- Added a new OpenRouteServiceRoutingEngine class as the future routing engine.
+  For now it only returns the stops in the same order as the request.
+  This prepares the project for plugging in real ORS routing later.
 - 
