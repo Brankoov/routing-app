@@ -29,6 +29,7 @@ public class OpenRouteServiceRoutingEngine implements RoutingEngine {
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
         // just nu: fortfarande bara enkel ordning, ingen riktig ORS-anrop än
 
+
         List<StopResponse> stops = IntStream
                 .range(0, request.stops().size())
                 .mapToObj(i -> {

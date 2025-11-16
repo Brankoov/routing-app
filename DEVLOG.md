@@ -54,4 +54,8 @@
   This prepares the project for plugging in real ORS routing later.
 - Wired OpenRouteServiceRoutingEngine to use the shared orsWebClient from OrsConfig.
   The routing engine still returns stops in the original order, but it now has access to the ORS WebClient, so it’s ready for a real directions call later.
-- 
+- Connected the full address-to-map flow.
+  The frontend now sends start address, end address and stops to /api/routes/optimize.
+  RouteOptimizationService calls the routing engine and then uses GeocodingService to fill in missing latitude/longitude for each stop using OpenRouteService.
+  The API response returns ordered stops with real coordinates, and the frontend can now render the route points on the map.
+  Also configured the ORS_API_KEY as an environment variable so the key is not stored in the source code.
