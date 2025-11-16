@@ -28,4 +28,6 @@
 - Implemented a typed route optimization client (routeClient.ts) and RouteTester component that sends a hard-coded request to POST /api/routes/optimize and renders the ordered stops.
 - Ran into CORS / Spring Security issues when calling the backend from the frontend (fetch to /api/health failed). Fixed it by adding a SecurityConfig with CORS enabled and allowing http://localhost:5173 plus permitAll() on /api/**
 - Added a simple route planner view in the frontend mocked backends POST /api/routes/optimize that shows total stops
-- 
+
+## 2025-15-11
+- Hooked up the RouteMap to our API’s stop type, added a simple fallback that dots points between Stockholm and Gothenburg when coords are missing, and fixed the Leaflet marker icons in Vite.

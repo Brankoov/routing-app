@@ -3,57 +3,52 @@ package se.brankoov.routing.domain.route;
 import org.springframework.stereotype.Service;
 import se.brankoov.routing.api.route.RouteOptimizationRequest;
 import se.brankoov.routing.api.route.RouteOptimizationResponse;
-import se.brankoov.routing.api.route.StopRequest;
 import se.brankoov.routing.api.route.StopResponse;
+import se.brankoov.routing.domain.geocode.GeocodingService;
 
-import java.util.Comparator;
 import java.util.List;
 
 @Service
 public class RouteOptimizationService {
 
     private final RoutingEngine routingEngine;
+    private final GeocodingService geocodingService;
 
-    public RouteOptimizationService(RoutingEngine routingEngine) {
+    public RouteOptimizationService(RoutingEngine routingEngine, GeocodingService geocodingService) {
         this.routingEngine = routingEngine;
+        this.geocodingService = geocodingService;
     }
+
 
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
-        // 🔹 Just nu: låtsas-optimering.
-        // Sorterar bara stoppen på id och bygger ett svar.
+        // 1) Låt motorn bestämma ordning (mock just nu)
+        RouteOptimizationResponse base = routingEngine.optimize(request);
 
-        List<StopResponse> ordered = request.stops().stream()
-                .sorted(Comparator.comparing(StopRequest::id))
-                .map(stop -> new StopResponse(
-                        stop.id(),
-                        stop.label(),
-                        stop.address(),
-                        stop.latitude(),
-                        stop.longitude(),
-                        0 // vi sätter rätt order strax
-                ))
-                .toList();
+        // 2) Geokoda adresser som saknar lat/lng
+        List<StopResponse> enriched = base.orderedStops().stream()
+                .map(s -> {
+                    Double lat = s.latitude();
+                    Double lng = s.longitude();
 
-        // sätt "order" fältet 0,1,2,...
-        List<StopResponse> withOrder = addOrderIndex(ordered);
+                    if (lat == null || lng == null) {
+                        var maybe = geocodingService.geocodeFirst(s.address());
+                        if (maybe.isPresent()) {
+                            lat = maybe.get().lat();
+                            lng = maybe.get().lng();
+                        }
+                    }
 
-        return routingEngine.optimize(request);
-    }
-
-    private List<StopResponse> addOrderIndex(List<StopResponse> stops) {
-        // bygger en ny lista där order = index i listan
-        return java.util.stream.IntStream.range(0, stops.size())
-                .mapToObj(i -> {
-                    StopResponse s = stops.get(i);
                     return new StopResponse(
                             s.id(),
                             s.label(),
                             s.address(),
-                            s.latitude(),
-                            s.longitude(),
-                            i
+                            lat,   // kan vara null om geokod misslyckas
+                            lng,   // kan vara null om geokod misslyckas
+                            s.order()
                     );
                 })
                 .toList();
+
+        return new RouteOptimizationResponse(enriched, enriched.size());
     }
 }

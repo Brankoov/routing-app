@@ -4,6 +4,10 @@ import org.junit.jupiter.api.Test;
 import se.brankoov.routing.api.route.RouteOptimizationRequest;
 import se.brankoov.routing.api.route.RouteOptimizationResponse;
 import se.brankoov.routing.api.route.StopRequest;
+import se.brankoov.routing.domain.geocode.GeocodingService;
+
+import static org.mockito.Mockito.mock;
+
 
 import java.util.List;
 
@@ -12,7 +16,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RouteOptimizationServiceTest {
 
     private final RoutingEngine routingEngine = new MockRoutingEngine();
-    private final RouteOptimizationService service = new RouteOptimizationService(routingEngine);
+    private final GeocodingService geocodingService = mock(GeocodingService.class);
+    private final RouteOptimizationService service =
+            new RouteOptimizationService(routingEngine, geocodingService);
 
 
     @Test
