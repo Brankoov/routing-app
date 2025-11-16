@@ -31,3 +31,12 @@
 
 ## 2025-15-11
 - Hooked up the RouteMap to our API’s stop type, added a simple fallback that dots points between Stockholm and Gothenburg when coords are missing, and fixed the Leaflet marker icons in Vite.
+
+## 2025-16-11
+- Cleaned up the ORS/routing code in the backend.
+  Removed all geocoding logic from MockRoutingEngine, so it now only sorts stops and assigns their order.
+  Kept the responsibility for geocoding inside RouteOptimizationService through GeocodingService.
+  Updated RouteOptimizationServiceTest to use a Mockito mock of GeocodingService, ensuring the tests work with the updated constructor.
+- Fixed failing API tests caused by Spring Security returning 401 Unauthorized.
+  Added the spring-security-test dependency and used @WithMockUser in GeocodingControllerTest so the MockMvc requests run as an authenticated user.
+  Now the geocoding endpoint tests correctly assert 200 OK and 404 Not Found instead of 401.
