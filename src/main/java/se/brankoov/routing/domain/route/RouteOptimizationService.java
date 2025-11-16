@@ -14,11 +14,11 @@ public class RouteOptimizationService {
     private final RoutingEngine routingEngine;
     private final GeocodingService geocodingService;
 
-    public RouteOptimizationService(RoutingEngine routingEngine, GeocodingService geocodingService) {
+    public RouteOptimizationService(RoutingEngine routingEngine,
+                                    GeocodingService geocodingService) {
         this.routingEngine = routingEngine;
         this.geocodingService = geocodingService;
     }
-
 
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
         // 1) Låt motorn bestämma ordning (mock just nu)

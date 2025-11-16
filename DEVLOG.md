@@ -40,3 +40,9 @@
 - Fixed failing API tests caused by Spring Security returning 401 Unauthorized.
   Added the spring-security-test dependency and used @WithMockUser in GeocodingControllerTest so the MockMvc requests run as an authenticated user.
   Now the geocoding endpoint tests correctly assert 200 OK and 404 Not Found instead of 401.
+- Added RouteControllerTest using @WebMvcTest and @WithMockUser to cover the /api/routes/optimize endpoint.
+  Mocked RouteOptimizationService to return a fixed route response and verified that the controller returns HTTP 200 with the expected JSON structure (totalStops and orderedStops with correct ids and order values).
+- The RouteControllerTest did not pass at first.
+- Fixed the /api/routes/optimize MockMvc test by adding a CSRF token (with(csrf())) to the POST request. Spring Security was returning 403 Forbidden due to missing CSRF protection, even with an authenticated mock user.
+- Changed RouteOptimizationService so each stop gets coordinates if they are missing.
+  After the routing engine sets the stop order, the service checks every stop. If a stop has no latitude or longitude, it asks GeocodingService for the coordinates and fills them in. If geocoding fails, the stop keeps null values instead of crashing the app.
