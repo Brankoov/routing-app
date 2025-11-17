@@ -66,4 +66,7 @@
 - Updated RouteOptimizationService to apply a nearest neighbour algorithm on geocoded stops.
   The service now geocodes missing coordinates, then reorders the stops by picking the next closest stop based on Haversine distance, and finally reassigns the order indices.
   Added unit tests to verify both geocoding enrichment and the nearest neighbour ordering logic.
+- Added a simple in-memory geocoding cache to GeocodingService.
+  The service now normalizes the address, checks a ConcurrentHashMap before calling ORS, and stores successful results in the cache.
+  Also added a test using a subclassed GeocodingService to verify that repeated lookups of the same address only trigger one ORS call and the second one is served from cache.
 - 
