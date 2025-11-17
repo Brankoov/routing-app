@@ -24,10 +24,10 @@ public class RouteOptimizationService {
     }
 
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
-        // 1) Låt motorn göra sin grundgrej (just nu: bara paketera stops)
+        // 1) låt motorn göra sin grundgrej (just nu: paketera stops)
         RouteOptimizationResponse base = routingEngine.optimize(request);
 
-        // 2) Geokoda stops som saknar lat/lng
+        // 2) geokoda stops som saknar lat/lng
         List<StopResponse> enriched = base.orderedStops().stream()
                 .map(s -> {
                     Double lat = s.latitude();
@@ -52,10 +52,15 @@ public class RouteOptimizationService {
                 })
                 .toList();
 
-        // 3) Sortera stops med nearest neighbour (på lat/lng)
-        List<StopResponse> ordered = reorderNearestNeighbour(enriched);
+        // 3) geokoda startAddress (om möjligt)
+        GeocodingService.LatLng startPos = geocodingService
+                .geocodeFirst(request.startAddress())
+                .orElse(null);
 
-        // 4) Sätt nya order-index
+        // 4) sortera stops med nearest neighbour, med startAddress som start om vi har coords
+        List<StopResponse> ordered = reorderNearestNeighbour(enriched, startPos);
+
+        // 5) sätt nya order-index
         List<StopResponse> withOrder = addOrderIndex(ordered);
 
         return new RouteOptimizationResponse(withOrder, withOrder.size());
@@ -63,10 +68,12 @@ public class RouteOptimizationService {
 
     /**
      * Enkel nearest neighbour:
-     * - jobba bara på stops som har koordinater
-     * - lägg de utan koordinater sist, orörd ordning
+     * - om startPos != null: börja från startAddress
+     * - annars: börja från första stoppet
+     * - stops utan koordinater läggs sist i oförändrad ordning
      */
-    private List<StopResponse> reorderNearestNeighbour(List<StopResponse> stops) {
+    private List<StopResponse> reorderNearestNeighbour(List<StopResponse> stops,
+                                                       GeocodingService.LatLng startPos) {
         if (stops.size() <= 1) {
             return stops;
         }
@@ -83,7 +90,6 @@ public class RouteOptimizationService {
         }
 
         if (withCoords.size() <= 1) {
-            // inget att optimera
             List<StopResponse> combined = new ArrayList<>(withCoords);
             combined.addAll(withoutCoords);
             return combined;
@@ -92,9 +98,20 @@ public class RouteOptimizationService {
         List<StopResponse> remaining = new ArrayList<>(withCoords);
         List<StopResponse> ordered = new ArrayList<>();
 
-        // starta på första stoppet i listan
-        StopResponse current = remaining.remove(0);
-        ordered.add(current);
+        Double currentLat;
+        Double currentLng;
+
+        if (startPos != null) {
+            // börja vid startAddress (depot etc)
+            currentLat = startPos.lat();
+            currentLng = startPos.lng();
+        } else {
+            // fallback: börja vid första stoppet
+            StopResponse first = remaining.remove(0);
+            ordered.add(first);
+            currentLat = first.latitude();
+            currentLng = first.longitude();
+        }
 
         while (!remaining.isEmpty()) {
             StopResponse next = null;
@@ -102,7 +119,7 @@ public class RouteOptimizationService {
 
             for (StopResponse candidate : remaining) {
                 double d = DistanceCalculator.distanceInKm(
-                        current.latitude(), current.longitude(),
+                        currentLat, currentLng,
                         candidate.latitude(), candidate.longitude()
                 );
                 if (d < best) {
@@ -113,10 +130,11 @@ public class RouteOptimizationService {
 
             remaining.remove(next);
             ordered.add(next);
-            current = next;
+            currentLat = next.latitude();
+            currentLng = next.longitude();
         }
 
-        // lägg stops utan koordinater sist
+        // lägg stops utan coords sist
         ordered.addAll(withoutCoords);
         return ordered;
     }

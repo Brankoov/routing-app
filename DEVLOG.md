@@ -69,4 +69,7 @@
 - Added a simple in-memory geocoding cache to GeocodingService.
   The service now normalizes the address, checks a ConcurrentHashMap before calling ORS, and stores successful results in the cache.
   Also added a test using a subclassed GeocodingService to verify that repeated lookups of the same address only trigger one ORS call and the second one is served from cache.
+- Updated RouteOptimizationService so the nearest neighbour algorithm now starts from the geocoded startAddress when available.
+  If geocoding the start address fails, it falls back to starting from the first stop as before.
+  Added a unit test to verify that a depot-like start location changes the stop order so the closest stop is visited first.
 - 

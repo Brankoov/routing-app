@@ -84,4 +84,37 @@ class RouteOptimizationServiceTest {
         assertEquals(1, result.orderedStops().get(1).order());
         assertEquals(2, result.orderedStops().get(2).order());
     }
+
+    @Test
+    void usesStartAddressCoordinatesAsStartingPointWhenAvailable() {
+        // routing-engine svarar med två stops, ordning spelar ingen roll
+        RoutingEngine routingEngine = request -> {
+            var far = new StopResponse("FAR", "Far", "Far", 10.0, 0.0, 0);
+            var near = new StopResponse("NEAR", "Near", "Near", 1.0, 0.0, 1);
+            return new RouteOptimizationResponse(List.of(far, near), 2);
+        };
+
+        GeocodingService geocodingService = mock(GeocodingService.class);
+
+        // startAddress "Depot" ligger vid (0,0)
+        given(geocodingService.geocodeFirst("Depot"))
+                .willReturn(Optional.of(new GeocodingService.LatLng(0.0, 0.0)));
+
+        RouteOptimizationService service = new RouteOptimizationService(routingEngine, geocodingService);
+
+        var request = new RouteOptimizationRequest(
+                "Depot",
+                "End",
+                List.of(
+                        new StopRequest("FAR", "Far", "Far", 10.0, 0.0),
+                        new StopRequest("NEAR", "Near", "Near", 1.0, 0.0)
+                )
+        );
+
+        RouteOptimizationResponse result = service.optimize(request);
+
+        // när vi startar vid (0,0) ska NEAR vara först
+        assertEquals("NEAR", result.orderedStops().get(0).id());
+        assertEquals("FAR", result.orderedStops().get(1).id());
+    }
 }
