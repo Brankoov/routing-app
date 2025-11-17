@@ -59,3 +59,8 @@
   RouteOptimizationService calls the routing engine and then uses GeocodingService to fill in missing latitude/longitude for each stop using OpenRouteService.
   The API response returns ordered stops with real coordinates, and the frontend can now render the route points on the map.
   Also configured the ORS_API_KEY as an environment variable so the key is not stored in the source code.
+
+## 2025-17-11
+-Added a DistanceCalculator utility using the Haversine formula to compute distances between two coordinates in kilometers.
+Also added unit tests to verify zero-distance for identical points and a reasonable distance between two real cities.
+-
