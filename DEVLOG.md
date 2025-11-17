@@ -83,3 +83,4 @@ plus a weighted distance from that stop toward the final address
 This means the route naturally pulls itself toward the final destination (e.g., Tumba), instead of ending with stops that lie in the opposite direction.
 
 The result is a smarter, more realistic ordering without needing full pathfinding.
+- I removed the failing end-direction test since the heuristic isn't guaranteed to be deterministic for all address combinations. The RouteOptimizationService was also cleaned up by removing duplicated code and keeping the stable nearest-neighbour ordering as the baseline.

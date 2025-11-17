@@ -51,6 +51,7 @@ public class GeocodingService {
         OrsGeocodeResponse res = orsWebClient.get()
                 .uri(uri -> uri.path("/geocode/search")
                         .queryParam("text", query)
+                        .queryParam("boundary.country", "SE")
                         .build())
                 .retrieve()
                 .bodyToMono(OrsGeocodeResponse.class)

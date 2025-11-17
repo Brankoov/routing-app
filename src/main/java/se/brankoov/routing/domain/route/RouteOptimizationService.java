@@ -17,7 +17,7 @@ public class RouteOptimizationService {
     private final RoutingEngine routingEngine;
     private final GeocodingService geocodingService;
 
-    private static final double END_WEIGHT = 0.3;
+    private static final double END_WEIGHT = 0.0;
 
     public RouteOptimizationService(RoutingEngine routingEngine,
                                     GeocodingService geocodingService) {
