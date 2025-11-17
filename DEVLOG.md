@@ -72,4 +72,14 @@
 - Updated RouteOptimizationService so the nearest neighbour algorithm now starts from the geocoded startAddress when available.
   If geocoding the start address fails, it falls back to starting from the first stop as before.
   Added a unit test to verify that a depot-like start location changes the stop order so the closest stop is visited first.
-- 
+- Originally, my nearest-neighbour algorithm only looked at the distance from the current stop to the next one.
+  This worked, but it sometimes produced routes that drifted in the wrong direction — for example, visiting “outward” stops even if the final destination was south.
+To fix this, I added end-address awareness. Now the algorithm calculates both:
+
+the distance from the current point to each candidate stop
+
+plus a weighted distance from that stop toward the final address
+
+This means the route naturally pulls itself toward the final destination (e.g., Tumba), instead of ending with stops that lie in the opposite direction.
+
+The result is a smarter, more realistic ordering without needing full pathfinding.

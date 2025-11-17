@@ -117,4 +117,41 @@ class RouteOptimizationServiceTest {
         assertEquals("NEAR", result.orderedStops().get(0).id());
         assertEquals("FAR", result.orderedStops().get(1).id());
     }
+
+    @Test
+    void endAddressPullsRouteDirection() {
+        // engine returnerar två stops på varsin sida om start
+        RoutingEngine routingEngine = request -> {
+            var north = new StopResponse("N", "North", "North", 59.5, 18.0, 0);
+            var south = new StopResponse("S", "South", "South", 58.5, 18.0, 1);
+            return new RouteOptimizationResponse(List.of(north, south), 2);
+        };
+
+        GeocodingService geocodingService = mock(GeocodingService.class);
+
+        // Start vid (59.0, 18.0)
+        given(geocodingService.geocodeFirst("Start"))
+                .willReturn(Optional.of(new GeocodingService.LatLng(59.0, 18.0)));
+
+        // End längre söderut -> algoritmen bör “dras” mot South
+        given(geocodingService.geocodeFirst("End"))
+                .willReturn(Optional.of(new GeocodingService.LatLng(57.0, 18.0)));
+
+        RouteOptimizationService service = new RouteOptimizationService(routingEngine, geocodingService);
+
+        var request = new RouteOptimizationRequest(
+                "Start",
+                "End",
+                List.of(
+                        new StopRequest("N", "North", "North", 59.5, 18.0),
+                        new StopRequest("S", "South", "South", 58.5, 18.0)
+                )
+        );
+
+        RouteOptimizationResponse result = service.optimize(request);
+
+        assertEquals("S", result.orderedStops().get(0).id());
+        assertEquals("N", result.orderedStops().get(1).id());
+    }
+
 }

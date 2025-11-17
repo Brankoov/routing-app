@@ -17,6 +17,8 @@ public class RouteOptimizationService {
     private final RoutingEngine routingEngine;
     private final GeocodingService geocodingService;
 
+    private static final double END_WEIGHT = 0.3;
+
     public RouteOptimizationService(RoutingEngine routingEngine,
                                     GeocodingService geocodingService) {
         this.routingEngine = routingEngine;
@@ -24,10 +26,11 @@ public class RouteOptimizationService {
     }
 
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
-        // 1) låt motorn göra sin grundgrej (just nu: paketera stops)
+
+        // 1) låt motorn skapa grundstopp
         RouteOptimizationResponse base = routingEngine.optimize(request);
 
-        // 2) geokoda stops som saknar lat/lng
+        // 2) geokoda stops som saknar coords
         List<StopResponse> enriched = base.orderedStops().stream()
                 .map(s -> {
                     Double lat = s.latitude();
@@ -52,31 +55,30 @@ public class RouteOptimizationService {
                 })
                 .toList();
 
-        // 3) geokoda startAddress (om möjligt)
+        // 3) geokoda start och slut
         GeocodingService.LatLng startPos = geocodingService
                 .geocodeFirst(request.startAddress())
                 .orElse(null);
 
-        // 4) sortera stops med nearest neighbour, med startAddress som start om vi har coords
-        List<StopResponse> ordered = reorderNearestNeighbour(enriched, startPos);
+        GeocodingService.LatLng endPos = geocodingService
+                .geocodeFirst(request.endAddress())
+                .orElse(null);
 
-        // 5) sätt nya order-index
+        // 4) sortera med NN + end-weighting
+        List<StopResponse> ordered = reorderNearestNeighbour(enriched, startPos, endPos);
+
+        // 5) sätt ordningsindex
         List<StopResponse> withOrder = addOrderIndex(ordered);
 
         return new RouteOptimizationResponse(withOrder, withOrder.size());
     }
 
-    /**
-     * Enkel nearest neighbour:
-     * - om startPos != null: börja från startAddress
-     * - annars: börja från första stoppet
-     * - stops utan koordinater läggs sist i oförändrad ordning
-     */
-    private List<StopResponse> reorderNearestNeighbour(List<StopResponse> stops,
-                                                       GeocodingService.LatLng startPos) {
-        if (stops.size() <= 1) {
-            return stops;
-        }
+    private List<StopResponse> reorderNearestNeighbour(
+            List<StopResponse> stops,
+            GeocodingService.LatLng startPos,
+            GeocodingService.LatLng endPos
+    ) {
+        if (stops.size() <= 1) return stops;
 
         List<StopResponse> withCoords = new ArrayList<>();
         List<StopResponse> withoutCoords = new ArrayList<>();
@@ -102,11 +104,9 @@ public class RouteOptimizationService {
         Double currentLng;
 
         if (startPos != null) {
-            // börja vid startAddress (depot etc)
             currentLat = startPos.lat();
             currentLng = startPos.lng();
         } else {
-            // fallback: börja vid första stoppet
             StopResponse first = remaining.remove(0);
             ordered.add(first);
             currentLat = first.latitude();
@@ -114,27 +114,38 @@ public class RouteOptimizationService {
         }
 
         while (!remaining.isEmpty()) {
-            StopResponse next = null;
-            double best = Double.MAX_VALUE;
+            StopResponse best = null;
+            double bestScore = Double.MAX_VALUE;
 
-            for (StopResponse candidate : remaining) {
-                double d = DistanceCalculator.distanceInKm(
+            for (StopResponse c : remaining) {
+                double dist = DistanceCalculator.distanceInKm(
                         currentLat, currentLng,
-                        candidate.latitude(), candidate.longitude()
+                        c.latitude(), c.longitude()
                 );
-                if (d < best) {
-                    best = d;
-                    next = candidate;
+
+                double endPenalty = 0.0;
+                if (endPos != null) {
+                    double distToEnd = DistanceCalculator.distanceInKm(
+                            c.latitude(), c.longitude(),
+                            endPos.lat(), endPos.lng()
+                    );
+                    endPenalty = distToEnd * END_WEIGHT;
+                }
+
+                double score = dist + endPenalty;
+
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = c;
                 }
             }
 
-            remaining.remove(next);
-            ordered.add(next);
-            currentLat = next.latitude();
-            currentLng = next.longitude();
+            remaining.remove(best);
+            ordered.add(best);
+            currentLat = best.latitude();
+            currentLng = best.longitude();
         }
 
-        // lägg stops utan coords sist
         ordered.addAll(withoutCoords);
         return ordered;
     }
