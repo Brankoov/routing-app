@@ -61,6 +61,9 @@
   Also configured the ORS_API_KEY as an environment variable so the key is not stored in the source code.
 
 ## 2025-17-11
--Added a DistanceCalculator utility using the Haversine formula to compute distances between two coordinates in kilometers.
-Also added unit tests to verify zero-distance for identical points and a reasonable distance between two real cities.
--
+- Added a DistanceCalculator utility using the Haversine formula to compute distances between two coordinates in kilometers.
+  Also added unit tests to verify zero-distance for identical points and a reasonable distance between two real cities.
+- Updated RouteOptimizationService to apply a nearest neighbour algorithm on geocoded stops.
+  The service now geocodes missing coordinates, then reorders the stops by picking the next closest stop based on Haversine distance, and finally reassigns the order indices.
+  Added unit tests to verify both geocoding enrichment and the nearest neighbour ordering logic.
+- 
