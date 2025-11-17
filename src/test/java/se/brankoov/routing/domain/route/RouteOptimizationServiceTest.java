@@ -117,7 +117,6 @@ class RouteOptimizationServiceTest {
         assertEquals("NEAR", result.orderedStops().get(0).id());
         assertEquals("FAR", result.orderedStops().get(1).id());
     }
-
     @Test
     void endAddressPullsRouteDirection() {
         // engine returnerar två stops på varsin sida om start
@@ -153,5 +152,7 @@ class RouteOptimizationServiceTest {
         assertEquals("S", result.orderedStops().get(0).id());
         assertEquals("N", result.orderedStops().get(1).id());
     }
+
+
 
 }
