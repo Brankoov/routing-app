@@ -7,6 +7,16 @@ import {
 } from '../api/routeClient';
 import RouteMap from './RouteMap';
 
+function buildGoogleMapsUrl(stop: { latitude: number | null; longitude: number | null; address: string }) {
+  if (typeof stop.latitude === 'number' && typeof stop.longitude === 'number') {
+    // använd coords om vi har dem
+    return `https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}`;
+  }
+  // fallback till adress
+  const q = encodeURIComponent(stop.address);
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
 type LoadState = 'idle' | 'loading' | 'ok' | 'error';
 
 type StopInput = {
@@ -166,13 +176,20 @@ export function RoutePlanner() {
           <h3>Result</h3>
           <p>Total stops: {result.totalStops}</p>
           <ul>
-            {result.orderedStops.map((stop) => (
-              <li key={stop.id}>
-                #{stop.order} – {stop.address}
-              </li>
-            ))}
-          </ul>
-
+          {result.orderedStops.map((stop) => (
+            <li key={stop.id} style={{ marginBottom: '0.25rem' }}>
+              #{stop.order} – {stop.address}{' '}
+              <a
+                href={buildGoogleMapsUrl(stop)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: '0.85rem' }}
+              >
+                (Open in Google Maps)
+              </a>
+            </li>
+          ))}
+        </ul>
           <RouteMap
             startAddress={startAddress}
             endAddress={endAddress}
