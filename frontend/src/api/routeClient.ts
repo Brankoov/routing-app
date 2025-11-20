@@ -1,4 +1,3 @@
-
 export interface StopRequest {
   id: string;
   label: string;
@@ -16,10 +15,17 @@ export interface RouteOptimizationResponse {
   totalStops: number;
 }
 
+// --- NYA TYPER FÖR ATT SPARA ---
+export interface SaveRouteRequest {
+  name: string;
+  description?: string;
+  stops: OrderedStop[];
+}
+
 export async function optimizeRoute(params: {
   startAddress: string;
   endAddress: string;
-  stops: string[]; // bara adresser i UI:t
+  stops: string[];
 }): Promise<RouteOptimizationResponse> {
   const body = {
     startAddress: params.startAddress,
@@ -47,11 +53,18 @@ export async function optimizeRoute(params: {
 
   return response.json() as Promise<RouteOptimizationResponse>;
 }
-export type OptimizedStop = {
-  id: string;
-  order: number;
-  address: string;
-  longitude: number | null;
-  latitude: number | null;
-};
 
+// --- NY FUNKTION FÖR ATT SPARA ---
+export async function saveRoute(data: SaveRouteRequest): Promise<void> {
+  const response = await fetch('http://localhost:8080/api/routes/save', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to save route. Status: ${response.status}`);
+  }
+}

@@ -101,3 +101,8 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - Configured Spring Boot with **Spring Data JPA**.
   Created `RouteEntity` and `RouteStopEntity` classes.
   Verified that Hibernate automatically creates the `routes` and `route_stops` tables in the database upon startup.
+- Connected the Frontend to the Backend Save Endpoint.
+  Updated `routeClient.ts` with a typed `saveRoute` function.
+  Modified `RoutePlanner.tsx` to include a "Route Name" input and a "Save Route" button that appears after optimization.
+  Added UI feedback (success/error states) for the save operation.
+- Verified end-to-end flow: Optimization -> Naming -> Saving to PostgreSQL.

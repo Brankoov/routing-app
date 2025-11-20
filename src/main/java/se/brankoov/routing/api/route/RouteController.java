@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import se.brankoov.routing.domain.route.RouteOptimizationService;
+import se.brankoov.routing.domain.route.entity.RouteEntity;
 
 @RestController
 @RequestMapping("/api/routes")
@@ -31,5 +32,13 @@ public class RouteController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(response);
+    }
+    @PostMapping("/save")
+    public ResponseEntity<RouteEntity> save(@Valid @RequestBody SaveRouteRequest request) {
+        log.info("Saving route: {}", request.name());
+
+        RouteEntity saved = routeService.saveRoute(request);
+
+        return ResponseEntity.ok(saved);
     }
 }

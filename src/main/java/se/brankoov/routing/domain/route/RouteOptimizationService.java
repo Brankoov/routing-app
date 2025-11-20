@@ -1,11 +1,12 @@
 package se.brankoov.routing.domain.route;
 
 import org.springframework.stereotype.Service;
-import se.brankoov.routing.api.route.RouteOptimizationRequest;
-import se.brankoov.routing.api.route.RouteOptimizationResponse;
-import se.brankoov.routing.api.route.StopRequest;
-import se.brankoov.routing.api.route.StopResponse;
+import se.brankoov.routing.api.route.*;
 import se.brankoov.routing.domain.geocode.GeocodingService;
+import se.brankoov.routing.domain.route.entity.RouteEntity;
+import se.brankoov.routing.domain.route.entity.RouteRepository;
+import se.brankoov.routing.domain.route.entity.RouteStopEntity;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,13 +17,15 @@ public class RouteOptimizationService {
 
     private final RoutingEngine routingEngine;
     private final GeocodingService geocodingService;
+    private final RouteRepository routeRepository;
 
     private static final double END_WEIGHT = 0.0;
 
     public RouteOptimizationService(RoutingEngine routingEngine,
-                                    GeocodingService geocodingService) {
+                                    GeocodingService geocodingService, RouteRepository routeRepository) {
         this.routingEngine = routingEngine;
         this.geocodingService = geocodingService;
+        this.routeRepository = routeRepository;
     }
 
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
@@ -165,4 +168,27 @@ public class RouteOptimizationService {
                 })
                 .toList();
     }
+    @Transactional // Viktigt! Gör att allt sparas eller inget sparas om det blir fel
+    public RouteEntity saveRoute(SaveRouteRequest request) {
+        // 1. Skapa huvud-rutten
+        RouteEntity entity = new RouteEntity(request.name(), request.description());
+
+        // 2. Loopa igenom alla stopp och skapa entities
+        request.stops().forEach(s -> {
+            RouteStopEntity stopEntity = new RouteStopEntity(
+                    s.label(),
+                    s.address(),
+                    s.latitude(),
+                    s.longitude(),
+                    s.order()
+            );
+            // 3. Koppla ihop dem (parent <-> child)
+            entity.addStop(stopEntity);
+        });
+
+        // 4. Spara allt i databasen med ett enda anrop!
+        return routeRepository.save(entity);
+    }
 }
+
+
