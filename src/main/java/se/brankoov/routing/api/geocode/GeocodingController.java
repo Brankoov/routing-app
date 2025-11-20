@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import se.brankoov.routing.domain.geocode.GeocodingService;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/geocode")
 public class GeocodingController {
@@ -35,5 +37,22 @@ public class GeocodingController {
         var latLng = maybe.get();
         var body = new GeocodeResponse(query, latLng.lat(), latLng.lng());
         return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/suggest")
+    public ResponseEntity<?> suggest(@RequestParam("q") String query) {
+        log.info("Geocode suggest query='{}'", query);
+
+        var results = geocodingService.geocodeMany(query);
+
+        return ResponseEntity.ok(
+                results.stream()
+                        .map(r -> Map.of(
+                                "label", r.label(),
+                                "lat", r.lat(),
+                                "lng", r.lng()
+                        ))
+                        .toList()
+        );
     }
 }

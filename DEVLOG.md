@@ -84,3 +84,20 @@ This means the route naturally pulls itself toward the final destination (e.g., 
 
 The result is a smarter, more realistic ordering without needing full pathfinding.
 - I removed the failing end-direction test since the heuristic isn't guaranteed to be deterministic for all address combinations. The RouteOptimizationService was also cleaned up by removing duplicated code and keeping the stable nearest-neighbour ordering as the baseline.
+
+## 2025-20-11
+-I updated the route result view so that each optimized stop now has an “Open in Google Maps” link. The link uses coordinates when they are available and falls back to the address string otherwise. This makes it much easier to use the app for planning a round and then switch over to Google Maps for the actual driving.
+- Implemented address autocomplete in the frontend using a custom `AutoAddressInput` component.
+  It fetches suggestions via a new backend proxy endpoint (`/api/geocode/suggest`) that calls OpenRouteService.
+  Added debouncing to prevent API spamming while typing.
+- Fixed several UI/UX issues with the address input:
+  * Solved "White text on white background" issue in the suggestion list.
+  * Switched backend from ORS `/autocomplete` to `/search` endpoint to get better hits on full addresses.
+  * Implemented "Smart Input Logic" in frontend: If the API returns a street name but misses the specific house number entered by the user, the app now injects the user's number into the final result. This fixes the issue where selecting a suggestion would delete the house number.
+  * Fixed "Ghost Suggestions" (race conditions) by adding focus-checks and `autocomplete="off"` to prevent browser history from overlapping the app's suggestions.
+- Set up PostgreSQL database using Docker Compose.
+  Ran into issues with Windows WSL2 crashing, which required a full restart and Docker data purge.
+  Encountered port conflicts with a local Postgres installation (port 5432), resolved by mapping the Docker container to port **5433**.
+- Configured Spring Boot with **Spring Data JPA**.
+  Created `RouteEntity` and `RouteStopEntity` classes.
+  Verified that Hibernate automatically creates the `routes` and `route_stops` tables in the database upon startup.

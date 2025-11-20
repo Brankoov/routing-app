@@ -5,9 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -71,6 +69,53 @@ public class GeocodingService {
         double lat = f.geometry.coordinates[1];
         return Optional.of(new LatLng(lat, lon));
     }
+
+    // i GeocodingService
+
+    // I se.brankoov.routing.domain.geocode.GeocodingService
+
+    public List<LatLngLabel> geocodeMany(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+
+        // ÄNDRING: Vi använder /geocode/search istället för /geocode/autocomplete
+        // Search är bättre på att hantera hela adresser med gatunummer.
+        OrsGeocodeResponse res = orsWebClient.get()
+                .uri(uri -> uri.path("/geocode/search")
+                        .queryParam("text", query)
+                        .queryParam("boundary.country", "SE")
+                        // Vi kan be om max 10 träffar så vi har lite att välja på
+                        .queryParam("size", 10)
+                        .build())
+                .retrieve()
+                .bodyToMono(OrsGeocodeResponse.class)
+                .onErrorResume(e -> Mono.empty())
+                .block();
+
+        if (res == null || res.features == null) {
+            return List.of();
+        }
+
+        // Samma logik som förut: mappa till vår snygga lista
+        return Arrays.stream(res.features)
+                .filter(f -> f.geometry != null
+                        && f.geometry.coordinates != null
+                        && f.geometry.coordinates.length >= 2
+                        && f.properties != null
+                        && f.properties.label != null)
+                .limit(10) // Visa fler förslag om det finns
+                .map(f -> new LatLngLabel(
+                        f.properties.label,
+                        f.geometry.coordinates[1],
+                        f.geometry.coordinates[0]
+                ))
+                .toList();
+    }
+
+
+    public record LatLngLabel(String label, double lat, double lng) {}
+
 
     private String normalize(String query) {
         return query.trim().toLowerCase(Locale.ROOT);
