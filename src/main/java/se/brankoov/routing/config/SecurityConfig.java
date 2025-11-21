@@ -1,5 +1,6 @@
 package se.brankoov.routing.config;
-
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import se.brankoov.routing.security.JwtRequestFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,22 +17,29 @@ import java.util.List;
 
 @Configuration
 public class SecurityConfig {
+    private final JwtRequestFilter jwtRequestFilter; // <--- Injecta filtret
+
+    public SecurityConfig(JwtRequestFilter jwtRequestFilter) {
+        this.jwtRequestFilter = jwtRequestFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http
-        // Enable CORS so the CorsConfigurationSource bean is used
-        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-        // Vi bygger ren JSON-API => stäng av CSRF för nu
-        .csrf(csrf -> csrf.disable())
-        .authorizeHttpRequests(auth -> auth
-            // Öppna upp alla våra API-endpoints
-            .requestMatchers("/api/**").permitAll()
-            // (om du har nåt annat senare kan det kräva auth)
-            .anyRequest().permitAll()
-        );
+        http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**", "/api/health").permitAll() // Öppet
+                        .requestMatchers("/api/geocode/**").permitAll() // Låt geocoding vara öppet för nu (eller lås om du vill)
 
-        // Ingen inloggning alls just nu
+                        // LÅS ALLA RUTT-ANROP:
+                        .requestMatchers("/api/routes/**").authenticated()
+
+                        .anyRequest().authenticated() // Allt annat låst som standard
+                )
+                // LÄGG TILL FILTRET HÄR:
+                .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 

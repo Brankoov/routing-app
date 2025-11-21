@@ -1,30 +1,4 @@
-// Typ för datat som kommer från GET /api/routes
-export interface SavedRoute {
-  id: number;
-  name: string;
-  description?: string;
-  startAddress?: string; 
-  endAddress?: string;
-  createdAt: string;
-  stops: {
-    id: number;
-    address: string;
-    latitude: number;
-    longitude: number;
-    orderIndex: number; // OBS: Backend heter den orderIndex, inte order
-  }[];
-}
-
-export async function fetchAllRoutes(): Promise<SavedRoute[]> {
-  const response = await fetch('http://localhost:8080/api/routes');
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch routes. Status: ${response.status}`);
-  }
-
-  return response.json() as Promise<SavedRoute[]>;
-}
-
+// --- TYPER ---
 export interface StopRequest {
   id: string;
   label: string;
@@ -42,14 +16,40 @@ export interface RouteOptimizationResponse {
   totalStops: number;
 }
 
-// --- NYA TYPER FÖR ATT SPARA ---
 export interface SaveRouteRequest {
   name: string;
-  startAddress?: string; 
-  endAddress?: string;   
   description?: string;
+  startAddress?: string;
+  endAddress?: string;
   stops: OrderedStop[];
 }
+
+export interface SavedRoute {
+  id: number;
+  name: string;
+  description?: string;
+  startAddress?: string;
+  endAddress?: string;
+  createdAt: string;
+  stops: {
+    id: number;
+    address: string;
+    latitude: number;
+    longitude: number;
+    orderIndex: number;
+  }[];
+}
+
+// --- HJÄLPFUNKTION FÖR HEADERS (Magin händer här) ---
+function getAuthHeaders() {
+  const token = localStorage.getItem("jwt_token");
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : '',
+  };
+}
+
+// --- API ANROP ---
 
 export async function optimizeRoute(params: {
   startAddress: string;
@@ -68,13 +68,9 @@ export async function optimizeRoute(params: {
     })),
   };
 
-  
-
   const response = await fetch('http://localhost:8080/api/routes/optimize', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(), // <--- ANVÄNDER NYA HEADERS
     body: JSON.stringify(body),
   });
 
@@ -84,28 +80,38 @@ export async function optimizeRoute(params: {
 
   return response.json() as Promise<RouteOptimizationResponse>;
 }
-export async function deleteRoute(id: number): Promise<void> {
-  const response = await fetch(`http://localhost:8080/api/routes/${id}`, {
-    method: 'DELETE',
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to delete route. Status: ${response.status}`);
-  }
-}
 
-// --- NY FUNKTION FÖR ATT SPARA ---
 export async function saveRoute(data: SaveRouteRequest): Promise<void> {
   const response = await fetch('http://localhost:8080/api/routes/save', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(), // <--- HÄR
     body: JSON.stringify(data),
   });
 
   if (!response.ok) {
     throw new Error(`Failed to save route. Status: ${response.status}`);
   }
-  
-  
+}
+
+export async function fetchAllRoutes(): Promise<SavedRoute[]> {
+  const response = await fetch('http://localhost:8080/api/routes', {
+    method: 'GET',
+    headers: getAuthHeaders(), // <--- OCH HÄR
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch routes. Status: ${response.status}`);
+  }
+
+  return response.json() as Promise<SavedRoute[]>;
+}
+
+export async function deleteRoute(id: number): Promise<void> {
+  const response = await fetch(`http://localhost:8080/api/routes/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(), // <--- OCH HÄR
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete route. Status: ${response.status}`);
+  }
 }

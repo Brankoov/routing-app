@@ -15,7 +15,16 @@ export function LoginForm() {
 
     try {
       const jwt = await loginUser({ username, password });
+      
+      // NYTT: Spara token i webbläsaren så vi kommer åt den i API-klienten
+      localStorage.setItem("jwt_token", jwt);
+      
       setToken(jwt);
+      
+      // Ladda om sidan så att "Mina Rutter" och andra komponenter fattar att vi är inloggade
+      // (I en större app använder man Context, men detta är enklast nu)
+      setTimeout(() => window.location.reload(), 1000);
+      
     } catch (err) {
       setError("Inloggning misslyckades. Fel användarnamn eller lösenord?");
     }

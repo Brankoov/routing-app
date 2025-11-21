@@ -133,3 +133,12 @@ The result is a smarter, more realistic ordering without needing full pathfindin
   Implemented `CustomUserDetailsService` to load users from the PostgreSQL database using Spring Security.
   Added `/api/auth/login` endpoint.
   Created `LoginForm` in frontend to verify token reception.
+- Secured the Backend API using `JwtRequestFilter`.
+    Endpoints under `/api/routes/**` now require a valid Bearer Token.
+    Configured `SecurityConfig` to enforce authentication state.
+- Integrated JWT handling in Frontend.
+  Updated `LoginForm` to store the received token in `localStorage`.
+  Updated `routeClient` to automatically attach the `Authorization: Bearer ...` header to all API requests.
+- Added `CurrentUser` component to decode the JWT payload and display the logged-in username along with a Logout button.
+- Verified full secure flow: Login -> Token Storage -> Secure API Call -> Data Retrieval.
+- 

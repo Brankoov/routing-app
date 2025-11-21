@@ -1,5 +1,6 @@
 package se.brankoov.routing.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -37,5 +38,16 @@ public class JwtUtil {
     // Om du har en riktig Base64-sträng i properties behövs inte detta, men detta är säkrare för dev.
     private String encodeSecret(String secret) {
         return java.util.Base64.getEncoder().encodeToString(secret.getBytes());
+    }
+    public String extractUsername(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
+    private Claims extractAllClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 }
