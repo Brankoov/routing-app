@@ -120,4 +120,6 @@ The result is a smarter, more realistic ordering without needing full pathfindin
   * Integrated `RouteMap` into the saved view.
   * Added "Open in Google Maps" links for saved stops.
   * Prevented accidental deletion by stopping event propagation on the delete button.
--
+- Added `startAddress` and `endAddress` to the `RouteEntity` and database schema to persist full route details.
+- Updated Frontend (`RoutePlanner`, `SavedRoutesList`) to send and display start/end addresses.
+- Fixed broken Google Maps links by updating the URL format to the standard `maps.google.com/?q=...`.

@@ -171,7 +171,12 @@ public class RouteOptimizationService {
     @Transactional // Viktigt! Gör att allt sparas eller inget sparas om det blir fel
     public RouteEntity saveRoute(SaveRouteRequest request) {
         // 1. Skapa huvud-rutten
-        RouteEntity entity = new RouteEntity(request.name(), request.description());
+        RouteEntity entity = new RouteEntity(
+                request.name(),
+                request.description(),
+                request.startAddress(),
+                request.endAddress()
+        );
 
         // 2. Loopa igenom alla stopp och skapa entities
         request.stops().forEach(s -> {

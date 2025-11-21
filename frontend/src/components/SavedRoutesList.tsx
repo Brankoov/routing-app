@@ -8,11 +8,13 @@ function buildGoogleMapsUrl(stop: {
   longitude: number | null;
   address: string;
 }) {
+  // Om vi har koordinater, använd dem
   if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
-    return `http://googleusercontent.com/maps.google.com/maps?q=${stop.latitude},${stop.longitude}`;
+    return `https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}`;
   }
+  // Annars sök på texten
   const q = encodeURIComponent(stop.address);
-  return `http://googleusercontent.com/maps.google.com/maps?q=${q}`;
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
 }
 
 export function SavedRoutesList() {
@@ -111,6 +113,12 @@ export function SavedRoutesList() {
                 <small style={{ color: "#aaa" }}>
                   Skapad: {new Date(route.createdAt).toLocaleDateString()} • {route.stops.length} stopp
                 </small>
+                {/* --- NYTT: Visa start och slut om de finns --- */}
+                <div style={{ marginTop: '0.5rem', fontSize: '0.9em', color: '#ddd' }}>
+                    {route.startAddress && <div>🏁 <strong>Start:</strong> {route.startAddress}</div>}
+                    {route.endAddress && <div>🏁 <strong>Slut:</strong> {route.endAddress}</div>}
+                </div>
+                {/* ------------------------------------------- */}
 
                 {/* DETALJVY - Visas bara om isExpanded är true */}
                 {isExpanded && (

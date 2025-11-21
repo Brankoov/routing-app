@@ -12,11 +12,13 @@ function buildGoogleMapsUrl(stop: {
   longitude: number | null;
   address: string;
 }) {
+  // Om vi har koordinater, använd dem
   if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
-    return `http://googleusercontent.com/maps.google.com/maps?q=${stop.latitude},${stop.longitude}`;
+    return `https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}`;
   }
+  // Annars sök på texten
   const q = encodeURIComponent(stop.address);
-  return `http://googleusercontent.com/maps.google.com/maps?q=${q}`;
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
 }
 
 type LoadState = "idle" | "loading" | "ok" | "error" | "saving";
@@ -114,6 +116,8 @@ export function RoutePlanner() {
         name: routeName,
         stops: result.orderedStops,
         description: "Created via Frontend",
+        startAddress: startAddress, 
+        endAddress: endAddress      
       });
 
       setSuccessMsg("Rutt sparad i databasen! ✅");

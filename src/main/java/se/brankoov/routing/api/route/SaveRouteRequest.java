@@ -9,7 +9,10 @@ public record SaveRouteRequest(
         @NotBlank(message = "Name is required")
         String name,
 
-        String description, // Valfritt
+        String description,
+
+        String startAddress,
+        String endAddress,
 
         @NotEmpty(message = "Stops cannot be empty")
         List<StopResponse> stops // Vi återanvänder StopResponse eftersom den har allt vi behöver (lat/lng/order)

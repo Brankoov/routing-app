@@ -3,6 +3,8 @@ export interface SavedRoute {
   id: number;
   name: string;
   description?: string;
+  startAddress?: string; 
+  endAddress?: string;
   createdAt: string;
   stops: {
     id: number;
@@ -43,6 +45,8 @@ export interface RouteOptimizationResponse {
 // --- NYA TYPER FÖR ATT SPARA ---
 export interface SaveRouteRequest {
   name: string;
+  startAddress?: string; 
+  endAddress?: string;   
   description?: string;
   stops: OrderedStop[];
 }
