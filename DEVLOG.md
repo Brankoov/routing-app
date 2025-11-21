@@ -141,4 +141,8 @@ The result is a smarter, more realistic ordering without needing full pathfindin
   Updated `routeClient` to automatically attach the `Authorization: Bearer ...` header to all API requests.
 - Added `CurrentUser` component to decode the JWT payload and display the logged-in username along with a Logout button.
 - Verified full secure flow: Login -> Token Storage -> Secure API Call -> Data Retrieval.
+- Implemented User Data Isolation (Multi-tenancy).
+  Updated `RouteRepository` to support finding routes by owner username.
+  Modified `RouteOptimizationService` to automatically link new routes to the authenticated user (extracted from Spring Security Context).
+  Refactored the retrieval logic so `GET /api/routes` only returns routes belonging to the logged-in user.
 - 

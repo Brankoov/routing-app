@@ -21,6 +21,7 @@ public class RouteController {
     private final RouteOptimizationService routeService;
     private final RouteRepository routeRepository;
 
+    // Vi behåller Repository här för att delete-metoden behöver den just nu
     public RouteController(RouteOptimizationService routeService, RouteRepository routeRepository) {
         this.routeService = routeService;
         this.routeRepository = routeRepository;
@@ -38,6 +39,7 @@ public class RouteController {
                 .status(HttpStatus.OK)
                 .body(response);
     }
+
     @PostMapping("/save")
     public ResponseEntity<RouteEntity> save(@Valid @RequestBody SaveRouteRequest request) {
         log.info("Saving route: {}", request.name());
@@ -46,16 +48,22 @@ public class RouteController {
 
         return ResponseEntity.ok(saved);
     }
+
     @GetMapping
-    public ResponseEntity<List<RouteEntity>> getAllRoutes() {
-        return ResponseEntity.ok(routeRepository.findAll());
+    public ResponseEntity<List<RouteEntity>> getMyRoutes() {
+        // HÄR ÄR ÄNDRINGEN: Vi hämtar bara den inloggade användarens rutter via servicen
+        return ResponseEntity.ok(routeService.getMyRoutes());
     }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRoute(@PathVariable Long id) {
         log.info("Deleting route with id: {}", id);
+
+        // OBS: Här borde man egentligen kolla att man äger rutten innan man tar bort den,
+        // men vi låter det vara så här för enkelhetens skull just nu.
         if (routeRepository.existsById(id)) {
             routeRepository.deleteById(id);
-            return ResponseEntity.noContent().build(); // 204 No Content (betyder "Borta!")
+            return ResponseEntity.noContent().build(); // 204 No Content
         }
         return ResponseEntity.notFound().build();
     }

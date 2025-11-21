@@ -7,6 +7,9 @@ import se.brankoov.routing.domain.route.entity.RouteEntity;
 import se.brankoov.routing.domain.route.entity.RouteRepository;
 import se.brankoov.routing.domain.route.entity.RouteStopEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.context.SecurityContextHolder;
+import se.brankoov.routing.domain.auth.UserEntity;
+import se.brankoov.routing.domain.auth.UserRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,14 +21,18 @@ public class RouteOptimizationService {
     private final RoutingEngine routingEngine;
     private final GeocodingService geocodingService;
     private final RouteRepository routeRepository;
+    private final UserRepository userRepository;
 
     private static final double END_WEIGHT = 0.0;
 
     public RouteOptimizationService(RoutingEngine routingEngine,
-                                    GeocodingService geocodingService, RouteRepository routeRepository) {
+                                    GeocodingService geocodingService,
+                                    RouteRepository routeRepository,
+                                    UserRepository userRepository) {
         this.routingEngine = routingEngine;
         this.geocodingService = geocodingService;
         this.routeRepository = routeRepository;
+        this.userRepository = userRepository;
     }
 
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
@@ -168,9 +175,15 @@ public class RouteOptimizationService {
                 })
                 .toList();
     }
-    @Transactional // Viktigt! Gör att allt sparas eller inget sparas om det blir fel
+    @Transactional
     public RouteEntity saveRoute(SaveRouteRequest request) {
-        // 1. Skapa huvud-rutten
+        // 1. Ta reda på vem som är inloggad
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // 2. Hämta användaren från DB
+        UserEntity currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found in DB"));
+
         RouteEntity entity = new RouteEntity(
                 request.name(),
                 request.description(),
@@ -178,21 +191,26 @@ public class RouteOptimizationService {
                 request.endAddress()
         );
 
-        // 2. Loopa igenom alla stopp och skapa entities
+        // 3. KOPPLA IHOP DEM!
+        entity.setOwner(currentUser);
+
         request.stops().forEach(s -> {
             RouteStopEntity stopEntity = new RouteStopEntity(
-                    s.label(),
-                    s.address(),
-                    s.latitude(),
-                    s.longitude(),
-                    s.order()
+                    s.label(), s.address(), s.latitude(), s.longitude(), s.order()
             );
-            // 3. Koppla ihop dem (parent <-> child)
             entity.addStop(stopEntity);
         });
 
-        // 4. Spara allt i databasen med ett enda anrop!
         return routeRepository.save(entity);
+    }
+
+    // --- NY METOD: Hämta mina rutter ---
+    public List<RouteEntity> getMyRoutes() {
+        // 1. Vem frågar?
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // 2. Hämta bara dennes rutter
+        return routeRepository.findAllByOwnerUsername(username);
     }
 }
 
