@@ -1,5 +1,6 @@
 import './App.css';
 import { HealthStatus } from './components/HealthStatus';
+import { RegisterForm } from './components/RegisterForm';
 import { RoutePlanner } from './components/RoutePlanner';
 import { SavedRoutesList } from './components/SavedRoutesList';
 
@@ -7,6 +8,10 @@ function App() {
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
       <h1>Routing app – dev UI</h1>
+
+      <section style={{ marginBottom: "3rem" }}>
+        <RegisterForm />
+      </section>
       <p>Simple health check to verify backend ↔ frontend integration.</p>
 
       <HealthStatus />

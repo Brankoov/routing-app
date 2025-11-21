@@ -123,3 +123,9 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - Added `startAddress` and `endAddress` to the `RouteEntity` and database schema to persist full route details.
 - Updated Frontend (`RoutePlanner`, `SavedRoutesList`) to send and display start/end addresses.
 - Fixed broken Google Maps links by updating the URL format to the standard `maps.google.com/?q=...`.
+- Implemented User Registration flow.
+  Created `UserEntity` and `UserRepository` in backend.
+  Configured Spring Security with `BCryptPasswordEncoder` for secure password hashing.
+  Added `/api/auth/register` endpoint.
+  Created `RegisterForm` in frontend and integrated it with the backend.
+- 

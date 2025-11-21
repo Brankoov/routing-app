@@ -1,5 +1,5 @@
 package se.brankoov.routing.domain.route.entity;
-
+import se.brankoov.routing.domain.auth.UserEntity;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -16,6 +16,10 @@ public class RouteEntity {
     private String name;        // T.ex. "Måndag Glas4"
 
     private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id") // Skapar kolumnen user_id i routes-tabellen
+    private UserEntity owner;
 
     private Instant createdAt = Instant.now();
     private String startAddress;
@@ -58,4 +62,7 @@ public class RouteEntity {
 
     public String getEndAddress() { return endAddress; }
     public void setEndAddress(String endAddress) { this.endAddress = endAddress; }
+
+    public UserEntity getOwner() { return owner; }
+    public void setOwner(UserEntity owner) { this.owner = owner; }
 }
