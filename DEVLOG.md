@@ -106,3 +106,8 @@ The result is a smarter, more realistic ordering without needing full pathfindin
   Modified `RoutePlanner.tsx` to include a "Route Name" input and a "Save Route" button that appears after optimization.
   Added UI feedback (success/error states) for the save operation.
 - Verified end-to-end flow: Optimization -> Naming -> Saving to PostgreSQL.
+
+## 2025-21-11
+- Implemented `GET /api/routes` endpoint to retrieve all saved routes from the database.
+- Solved infinite JSON recursion issues by adding `@JsonIgnore` to the parent relationship in `RouteStopEntity`.
+- 

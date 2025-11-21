@@ -1,4 +1,5 @@
 package se.brankoov.routing.domain.route.entity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.*;
 
@@ -20,6 +21,7 @@ public class RouteStopEntity {
 
     @ManyToOne
     @JoinColumn(name = "route_id")
+    @JsonIgnore
     private RouteEntity route;
 
     public RouteStopEntity() {

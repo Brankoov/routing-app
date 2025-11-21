@@ -8,6 +8,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import se.brankoov.routing.domain.route.RouteOptimizationService;
 import se.brankoov.routing.domain.route.entity.RouteEntity;
+import se.brankoov.routing.domain.route.entity.RouteRepository;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/routes")
@@ -16,9 +19,11 @@ public class RouteController {
     private static final Logger log = LoggerFactory.getLogger(RouteController.class);
 
     private final RouteOptimizationService routeService;
+    private final RouteRepository routeRepository;
 
-    public RouteController(RouteOptimizationService routeService) {
+    public RouteController(RouteOptimizationService routeService, RouteRepository routeRepository) {
         this.routeService = routeService;
+        this.routeRepository = routeRepository;
     }
 
     @PostMapping("/optimize")
@@ -40,5 +45,9 @@ public class RouteController {
         RouteEntity saved = routeService.saveRoute(request);
 
         return ResponseEntity.ok(saved);
+    }
+    @GetMapping
+    public ResponseEntity<List<RouteEntity>> getAllRoutes() {
+        return ResponseEntity.ok(routeRepository.findAll());
     }
 }
