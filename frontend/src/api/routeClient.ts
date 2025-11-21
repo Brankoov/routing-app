@@ -1,3 +1,28 @@
+// Typ för datat som kommer från GET /api/routes
+export interface SavedRoute {
+  id: number;
+  name: string;
+  description?: string;
+  createdAt: string;
+  stops: {
+    id: number;
+    address: string;
+    latitude: number;
+    longitude: number;
+    orderIndex: number; // OBS: Backend heter den orderIndex, inte order
+  }[];
+}
+
+export async function fetchAllRoutes(): Promise<SavedRoute[]> {
+  const response = await fetch('http://localhost:8080/api/routes');
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch routes. Status: ${response.status}`);
+  }
+
+  return response.json() as Promise<SavedRoute[]>;
+}
+
 export interface StopRequest {
   id: string;
   label: string;
@@ -67,4 +92,5 @@ export async function saveRoute(data: SaveRouteRequest): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to save route. Status: ${response.status}`);
   }
+  
 }

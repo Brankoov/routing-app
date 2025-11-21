@@ -110,4 +110,7 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 ## 2025-21-11
 - Implemented `GET /api/routes` endpoint to retrieve all saved routes from the database.
 - Solved infinite JSON recursion issues by adding `@JsonIgnore` to the parent relationship in `RouteStopEntity`.
+- Implemented `SavedRoutesList` component in React to display routes stored in the database.
+- Added `fetchAllRoutes` to the API client to consume the `GET /api/routes` endpoint.
+- Integrated the list view into the main App dashboard.
 - 

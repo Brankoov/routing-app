@@ -1,6 +1,7 @@
 import './App.css';
 import { HealthStatus } from './components/HealthStatus';
 import { RoutePlanner } from './components/RoutePlanner';
+import { SavedRoutesList } from './components/SavedRoutesList';
 
 function App() {
   return (
@@ -13,6 +14,8 @@ function App() {
       <hr style={{ margin: '2rem 0' }} />
 
       <RoutePlanner />
+
+      <SavedRoutesList />
     </div>
   );
 }
