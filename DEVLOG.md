@@ -128,4 +128,8 @@ The result is a smarter, more realistic ordering without needing full pathfindin
   Configured Spring Security with `BCryptPasswordEncoder` for secure password hashing.
   Added `/api/auth/register` endpoint.
   Created `RegisterForm` in frontend and integrated it with the backend.
-- 
+- Implemented Login flow with JWT generation.
+  Created `JwtUtil` to generate signed tokens (HS256).
+  Implemented `CustomUserDetailsService` to load users from the PostgreSQL database using Spring Security.
+  Added `/api/auth/login` endpoint.
+  Created `LoginForm` in frontend to verify token reception.

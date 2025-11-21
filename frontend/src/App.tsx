@@ -1,5 +1,6 @@
 import './App.css';
 import { HealthStatus } from './components/HealthStatus';
+import { LoginForm } from './components/LoginForm';
 import { RegisterForm } from './components/RegisterForm';
 import { RoutePlanner } from './components/RoutePlanner';
 import { SavedRoutesList } from './components/SavedRoutesList';
@@ -11,6 +12,7 @@ function App() {
 
       <section style={{ marginBottom: "3rem" }}>
         <RegisterForm />
+        <LoginForm />
       </section>
       <p>Simple health check to verify backend ↔ frontend integration.</p>
 
