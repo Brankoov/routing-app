@@ -50,4 +50,13 @@ public class RouteController {
     public ResponseEntity<List<RouteEntity>> getAllRoutes() {
         return ResponseEntity.ok(routeRepository.findAll());
     }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteRoute(@PathVariable Long id) {
+        log.info("Deleting route with id: {}", id);
+        if (routeRepository.existsById(id)) {
+            routeRepository.deleteById(id);
+            return ResponseEntity.noContent().build(); // 204 No Content (betyder "Borta!")
+        }
+        return ResponseEntity.notFound().build();
+    }
 }

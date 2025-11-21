@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchAllRoutes, type SavedRoute } from "../api/routeClient";
+import { fetchAllRoutes, deleteRoute, type SavedRoute } from "../api/routeClient";
 
 export function SavedRoutesList() {
   const [routes, setRoutes] = useState<SavedRoute[]>([]);
@@ -22,6 +22,18 @@ export function SavedRoutesList() {
       console.error(err);
       setError("Kunde inte hämta rutter.");
       setLoading(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm("Är du säker på att du vill ta bort rutten?")) return;
+    
+    try {
+      await deleteRoute(id);
+      // Ladda om listan direkt så den försvinner
+      loadRoutes(); 
+    } catch (err) {
+      alert("Kunde inte ta bort rutten");
     }
   }
 
@@ -54,6 +66,13 @@ export function SavedRoutesList() {
             >
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <h3 style={{ margin: "0 0 0.5rem 0", color: "#646cff" }}>{route.name}</h3>
+                {/* RADERA-KNAPP HÄR */}
+                    <button 
+                    onClick={() => handleDelete(route.id)}
+                    style={{ background: "red", color: "white", border: "none", padding: "2px 8px", height: "fit-content" }}
+                    >
+                    🗑️
+                    </button>
                 <small style={{ color: "#aaa" }}>
                   {new Date(route.createdAt).toLocaleDateString()}
                 </small>

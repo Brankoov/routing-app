@@ -64,6 +64,8 @@ export async function optimizeRoute(params: {
     })),
   };
 
+  
+
   const response = await fetch('http://localhost:8080/api/routes/optimize', {
     method: 'POST',
     headers: {
@@ -77,6 +79,14 @@ export async function optimizeRoute(params: {
   }
 
   return response.json() as Promise<RouteOptimizationResponse>;
+}
+export async function deleteRoute(id: number): Promise<void> {
+  const response = await fetch(`http://localhost:8080/api/routes/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete route. Status: ${response.status}`);
+  }
 }
 
 // --- NY FUNKTION FÖR ATT SPARA ---
@@ -92,5 +102,6 @@ export async function saveRoute(data: SaveRouteRequest): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to save route. Status: ${response.status}`);
   }
+  
   
 }

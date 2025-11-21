@@ -113,4 +113,6 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - Implemented `SavedRoutesList` component in React to display routes stored in the database.
 - Added `fetchAllRoutes` to the API client to consume the `GET /api/routes` endpoint.
 - Integrated the list view into the main App dashboard.
+- Implemented `DELETE /api/routes/{id}` endpoint in backend.
+- Added delete functionality to frontend client and `SavedRoutesList` component with confirmation dialog.
 - 
