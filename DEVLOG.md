@@ -115,4 +115,9 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - Integrated the list view into the main App dashboard.
 - Implemented `DELETE /api/routes/{id}` endpoint in backend.
 - Added delete functionality to frontend client and `SavedRoutesList` component with confirmation dialog.
-- 
+- Enhanced `SavedRoutesList` UI:
+  * Routes are now expandable, revealing the full list of stops and an interactive map.
+  * Integrated `RouteMap` into the saved view.
+  * Added "Open in Google Maps" links for saved stops.
+  * Prevented accidental deletion by stopping event propagation on the delete button.
+-
