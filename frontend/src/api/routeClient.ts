@@ -96,8 +96,17 @@ export async function saveRoute(data: SaveRouteRequest): Promise<void> {
 export async function fetchAllRoutes(): Promise<SavedRoute[]> {
   const response = await fetch('http://localhost:8080/api/routes', {
     method: 'GET',
-    headers: getAuthHeaders(), // <--- OCH HÄR
+    headers: getAuthHeaders(),
   });
+
+  // --- NYTT: Hantera trasig token ---
+  if (response.status === 403) {
+    // Servern gillar inte vår token. Kasta den och ladda om!
+    localStorage.removeItem("jwt_token");
+    window.location.reload();
+    throw new Error("Session expired");
+  }
+  // ----------------------------------
 
   if (!response.ok) {
     throw new Error(`Failed to fetch routes. Status: ${response.status}`);

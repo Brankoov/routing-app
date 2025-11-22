@@ -145,4 +145,16 @@ The result is a smarter, more realistic ordering without needing full pathfindin
   Updated `RouteRepository` to support finding routes by owner username.
   Modified `RouteOptimizationService` to automatically link new routes to the authenticated user (extracted from Spring Security Context).
   Refactored the retrieval logic so `GET /api/routes` only returns routes belonging to the logged-in user.
+
+## 2025-22-11
+- Improved Authentication UX ("Ghost Login" fix).
+  Refactored `App.tsx` to conditionally render Login/Register forms vs. the App Dashboard based on token existence.
+  Updated `routeClient.ts` to handle 403 Forbidden responses by automatically clearing the JWT from localStorage and refreshing the page to log the user out.
+- Implemented "Edit Route" workflow.
+  Users can now load a saved route back into the Route Planner to modify stops or addresses.
+  Refactored `App.tsx` to pass route data from `SavedRoutesList` to `RoutePlanner`.
+  Updated `RoutePlanner` to auto-populate fields when a route is selected for editing.
+- Improved UX in Route Planner.
+  Added a "Remove Stop" button (X) for individual stops.
+  Implemented automatic re-indexing of stop labels (e.g., "Stop 2" becomes "Stop 1" if the previous stop is removed).
 - 

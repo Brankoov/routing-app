@@ -1,28 +1,29 @@
 import { useEffect, useState } from "react";
 import { fetchAllRoutes, deleteRoute, type SavedRoute } from "../api/routeClient";
-import RouteMap from "./RouteMap"; // <--- Importera kartan
+import RouteMap from "./RouteMap";
 
-// Vi lånar denna hjälpfunktion här också
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
   longitude: number | null;
   address: string;
 }) {
-  // Om vi har koordinater, använd dem
   if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
-    return `https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}`;
+    return `http://googleusercontent.com/maps.google.com/maps?q=${stop.latitude},${stop.longitude}`;
   }
-  // Annars sök på texten
   const q = encodeURIComponent(stop.address);
-  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+  return `http://googleusercontent.com/maps.google.com/maps?q=${q}`;
 }
 
-export function SavedRoutesList() {
+// NYTT: Props definition
+type Props = {
+  onEdit: (route: SavedRoute) => void;
+};
+
+// Ta emot props här
+export function SavedRoutesList({ onEdit }: Props) {
   const [routes, setRoutes] = useState<SavedRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // NYTT: Håller koll på vilket ID som är "utfällt" (öppnat) just nu
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -43,25 +44,27 @@ export function SavedRoutesList() {
   }
 
   async function handleDelete(id: number, e: React.MouseEvent) {
-    e.stopPropagation(); // Förhindra att rutan öppnas när man klickar på radera
+    e.stopPropagation();
     if (!confirm("Är du säker på att du vill ta bort rutten?")) return;
     
     try {
       await deleteRoute(id);
       loadRoutes(); 
-      if (expandedId === id) setExpandedId(null); // Stäng om den var öppen
+      if (expandedId === id) setExpandedId(null);
     } catch (err) {
       alert("Kunde inte ta bort rutten");
     }
   }
 
-  // Hantera klick på hela rutan
   function toggleExpand(id: number) {
-    if (expandedId === id) {
-      setExpandedId(null); // Stäng om man klickar igen
-    } else {
-      setExpandedId(id); // Öppna denna
-    }
+    if (expandedId === id) setExpandedId(null);
+    else setExpandedId(id);
+  }
+
+  // NYTT: Hantera redigering
+  function handleEditClick(route: SavedRoute, e: React.MouseEvent) {
+    e.stopPropagation(); // Så vi inte togglar expand
+    onEdit(route);
   }
 
   if (loading) return <p>Laddar sparade rutter...</p>;
@@ -86,13 +89,13 @@ export function SavedRoutesList() {
             return (
               <div
                 key={route.id}
-                onClick={() => toggleExpand(route.id)} // Hela rutan är klickbar
+                onClick={() => toggleExpand(route.id)}
                 style={{
                   background: "#333",
                   padding: "1rem",
                   borderRadius: "8px",
                   textAlign: "left",
-                  border: isExpanded ? "1px solid #646cff" : "1px solid #444", // Lyser blått om vald
+                  border: isExpanded ? "1px solid #646cff" : "1px solid #444",
                   cursor: "pointer",
                   transition: "all 0.2s"
                 }}
@@ -102,25 +105,34 @@ export function SavedRoutesList() {
                     {route.name} {isExpanded ? "🔼" : "🔽"}
                   </h3>
                   
-                  <button 
-                    onClick={(e) => handleDelete(route.id, e)}
-                    style={{ background: "#aa2222", color: "white", border: "none", padding: "4px 8px", borderRadius: "4px" }}
-                  >
-                    Ta bort
-                  </button>
+                  <div style={{display: 'flex', gap: '0.5rem'}}>
+                    {/* NY KNAPP: REDIGERA */}
+                    <button 
+                      onClick={(e) => handleEditClick(route, e)}
+                      style={{ background: "#228822", color: "white", border: "none", padding: "4px 8px", borderRadius: "4px" }}
+                      title="Ladda upp i planeraren för att ändra"
+                    >
+                      ✏️ Redigera
+                    </button>
+
+                    <button 
+                      onClick={(e) => handleDelete(route.id, e)}
+                      style={{ background: "#aa2222", color: "white", border: "none", padding: "4px 8px", borderRadius: "4px" }}
+                    >
+                      Ta bort
+                    </button>
+                  </div>
                 </div>
                 
                 <small style={{ color: "#aaa" }}>
                   Skapad: {new Date(route.createdAt).toLocaleDateString()} • {route.stops.length} stopp
                 </small>
-                {/* --- NYTT: Visa start och slut om de finns --- */}
+
                 <div style={{ marginTop: '0.5rem', fontSize: '0.9em', color: '#ddd' }}>
                     {route.startAddress && <div>🏁 <strong>Start:</strong> {route.startAddress}</div>}
                     {route.endAddress && <div>🏁 <strong>Slut:</strong> {route.endAddress}</div>}
                 </div>
-                {/* ------------------------------------------- */}
 
-                {/* DETALJVY - Visas bara om isExpanded är true */}
                 {isExpanded && (
                   <div style={{ marginTop: "1.5rem", borderTop: "1px solid #555", paddingTop: "1rem", cursor: "default" }} onClick={e => e.stopPropagation()}>
                     <p style={{fontStyle: 'italic'}}>{route.description}</p>
@@ -141,10 +153,9 @@ export function SavedRoutesList() {
                       ))}
                     </ul>
 
-                    {/* Visa kartan! Vi måste mappa om orderIndex -> order för att komponenten ska bli glad */}
                     <RouteMap 
-                        startAddress="Start" // Vi har inte sparat start/slut-text separat i DB än, men kartan funkar ändå
-                        endAddress="Slut"
+                        startAddress={route.startAddress || "Start"} 
+                        endAddress={route.endAddress || "Slut"}
                         stops={route.stops.map(s => ({
                             ...s,
                             id: String(s.id),

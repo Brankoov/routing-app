@@ -1,53 +1,81 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react"; // <--- Importera useEffect
 import {
   optimizeRoute,
   saveRoute,
   type RouteOptimizationResponse,
+  type SavedRoute, // <--- Import
 } from "../api/routeClient";
 import RouteMap from "./RouteMap";
 import AutoAddressInput from "./AutoAddressInput";
 
+// ... (buildGoogleMapsUrl funktionen är kvar) ...
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
   longitude: number | null;
   address: string;
 }) {
-  // Om vi har koordinater, använd dem
   if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
-    return `https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}`;
+    return `http://googleusercontent.com/maps.google.com/maps?q=${stop.latitude},${stop.longitude}`;
   }
-  // Annars sök på texten
   const q = encodeURIComponent(stop.address);
-  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+  return `http://googleusercontent.com/maps.google.com/maps?q=${q}`;
 }
 
 type LoadState = "idle" | "loading" | "ok" | "error" | "saving";
 
 type StopInput = {
   id: string;
-  label: string;
   address: string;
 };
 
 const MAX_STOPS = 10;
 
-export function RoutePlanner() {
+// NYTT: Ta emot props
+type Props = {
+  routeToLoad: SavedRoute | null;
+};
+
+export function RoutePlanner({ routeToLoad }: Props) {
   const [startAddress, setStartAddress] = useState("");
   const [endAddress, setEndAddress] = useState("");
   const [stops, setStops] = useState<StopInput[]>([
-    { id: "1", label: "Stop 1", address: "" },
-    { id: "2", label: "Stop 2", address: "" },
+    { id: String(Date.now()), address: "" },
   ]);
 
-  // Resultat från optimering
   const [result, setResult] = useState<RouteOptimizationResponse | null>(null);
-
-  // State för att spara rutt
   const [routeName, setRouteName] = useState("");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // --- NYTT: Lyssna på routeToLoad och fyll i formuläret ---
+  useEffect(() => {
+    if (routeToLoad) {
+        // 1. Fyll i Start och Slut
+        setStartAddress(routeToLoad.startAddress || "");
+        setEndAddress(routeToLoad.endAddress || "");
+        
+        // 2. Fyll i namnet (och lägg till " - kopia" kanske?)
+        setRouteName(routeToLoad.name + " (Redigerad)");
+
+        // 3. Konvertera sparade stops till formulär-format
+        // Vi sorterar på orderIndex så de hamnar i rätt ordning
+        const formStops = [...routeToLoad.stops]
+            .sort((a, b) => a.orderIndex - b.orderIndex)
+            .map(s => ({
+                id: String(Date.now() + Math.random()), // Skapa nytt unikt ID för React
+                address: s.address
+            }));
+        
+        setStops(formStops);
+        
+        // Nollställ gamla resultat
+        setResult(null);
+        setSuccessMsg(null);
+        setState("idle");
+    }
+  }, [routeToLoad]);
+  // -------------------------------------------------------
 
   const hasEnoughData =
     startAddress.trim().length > 0 &&
@@ -63,15 +91,14 @@ export function RoutePlanner() {
   const addStop = () => {
     setStops((prev) => {
       if (prev.length >= MAX_STOPS) return prev;
-      const nextIndex = prev.length + 1;
-      return [
-        ...prev,
-        { id: String(nextIndex), label: `Stop ${nextIndex}`, address: "" },
-      ];
+      return [...prev, { id: String(Date.now()), address: "" }];
     });
   };
 
-  // 1. Optimera Rutt
+  const removeStop = (id: string) => {
+    setStops((prev) => prev.filter((s) => s.id !== id));
+  };
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
@@ -106,7 +133,6 @@ export function RoutePlanner() {
     }
   }
 
-  // 2. Spara Rutt
   async function handleSave() {
     if (!result || !routeName.trim()) return;
 
@@ -116,13 +142,13 @@ export function RoutePlanner() {
         name: routeName,
         stops: result.orderedStops,
         description: "Created via Frontend",
-        startAddress: startAddress, 
-        endAddress: endAddress      
+        startAddress: startAddress,
+        endAddress: endAddress
       });
 
       setSuccessMsg("Rutt sparad i databasen! ✅");
       setState("ok");
-      setRouteName(""); // Rensa namnfältet
+      setRouteName("");
     } catch (err) {
       console.error(err);
       setError("Kunde inte spara rutten.");
@@ -160,13 +186,40 @@ export function RoutePlanner() {
 
         <div style={{ marginTop: "0.5rem" }}>
           <strong>Stops</strong>
-          {stops.map((stop) => (
-            <div key={stop.id} style={{ marginTop: "0.5rem" }}>
-              <AutoAddressInput
-                label={stop.label}
-                value={stop.address}
-                onChange={(v) => handleStopChange(stop.id, v)}
-              />
+          
+          {stops.map((stop, index) => (
+            <div 
+              key={stop.id} 
+              style={{ 
+                marginTop: "0.5rem", 
+                display: "flex", 
+                alignItems: "flex-end", 
+                gap: "0.5rem" 
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <AutoAddressInput
+                  label={`Stop ${index + 1}`}
+                  value={stop.address}
+                  onChange={(v) => handleStopChange(stop.id, v)}
+                />
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => removeStop(stop.id)}
+                title="Ta bort stopp"
+                style={{
+                  background: "#aa2222",
+                  color: "white",
+                  border: "none",
+                  height: "38px",
+                  padding: "0 12px",
+                  marginBottom: "2px"
+                }}
+              >
+                ✕
+              </button>
             </div>
           ))}
 
@@ -191,9 +244,7 @@ export function RoutePlanner() {
       </form>
 
       {state === "error" && error && (
-        <p style={{ color: "red", marginTop: "0.5rem" }}>
-          Fel: {error}
-        </p>
+        <p style={{ color: "red", marginTop: "0.5rem" }}>Fel: {error}</p>
       )}
 
       {successMsg && (
@@ -202,13 +253,11 @@ export function RoutePlanner() {
         </p>
       )}
 
-      {/* VISA RESULTAT OCH SPARA-KNAPP */}
       {result && (
         <div style={{ marginTop: "2rem", borderTop: "1px solid #444", paddingTop: "1rem" }}>
           <h3>Resultat</h3>
           <p>Total stops: {result.totalStops}</p>
 
-          {/* --- NY DEL: SPARA --- */}
           <div
             style={{
               background: "#333",
@@ -240,7 +289,6 @@ export function RoutePlanner() {
               {state === "saving" ? "Sparar..." : "2. Spara Rutt 💾"}
             </button>
           </div>
-          {/* --------------------- */}
 
           <div style={{ textAlign: "left", marginBottom: "1rem" }}>
             <ul style={{ paddingLeft: "1.5rem" }}>
