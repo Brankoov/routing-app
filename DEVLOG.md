@@ -157,4 +157,9 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - Improved UX in Route Planner.
   Added a "Remove Stop" button (X) for individual stops.
   Implemented automatic re-indexing of stop labels (e.g., "Stop 2" becomes "Stop 1" if the previous stop is removed).
+- Major Upgrade: Integrated OpenRouteService Matrix API.
+  Replaced the "As the crow flies" (Haversine) calculation with real-world driving times.
+  Created `OrsMatrixService` to fetch a duration matrix (time in seconds) for all stops in a single API call.
+  Refactored the `RouteOptimizationService` logic to solve the Travelling Salesman Problem (TSP) based on minimizing driving time rather than geometric distance.
+- Verified the logic via backend logs, confirming that the algorithm now accounts for road networks (e.g., highways vs. small roads) when ordering stops.
 - 

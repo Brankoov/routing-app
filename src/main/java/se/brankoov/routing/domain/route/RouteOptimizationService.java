@@ -1,18 +1,23 @@
 package se.brankoov.routing.domain.route;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import se.brankoov.routing.api.route.*;
+import org.springframework.transaction.annotation.Transactional;
+import se.brankoov.routing.api.route.RouteOptimizationRequest;
+import se.brankoov.routing.api.route.RouteOptimizationResponse;
+import se.brankoov.routing.api.route.SaveRouteRequest;
+import se.brankoov.routing.api.route.StopResponse;
+import se.brankoov.routing.domain.auth.UserEntity;
+import se.brankoov.routing.domain.auth.UserRepository;
 import se.brankoov.routing.domain.geocode.GeocodingService;
 import se.brankoov.routing.domain.route.entity.RouteEntity;
 import se.brankoov.routing.domain.route.entity.RouteRepository;
 import se.brankoov.routing.domain.route.entity.RouteStopEntity;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.context.SecurityContextHolder;
-import se.brankoov.routing.domain.auth.UserEntity;
-import se.brankoov.routing.domain.auth.UserRepository;
+import se.brankoov.routing.infra.ors.OrsMatrixService;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 @Service
@@ -22,167 +27,145 @@ public class RouteOptimizationService {
     private final GeocodingService geocodingService;
     private final RouteRepository routeRepository;
     private final UserRepository userRepository;
-
-    private static final double END_WEIGHT = 0.0;
+    private final OrsMatrixService orsMatrixService; // <--- NYTT
 
     public RouteOptimizationService(RoutingEngine routingEngine,
                                     GeocodingService geocodingService,
                                     RouteRepository routeRepository,
-                                    UserRepository userRepository) {
+                                    UserRepository userRepository,
+                                    OrsMatrixService orsMatrixService) {
         this.routingEngine = routingEngine;
         this.geocodingService = geocodingService;
         this.routeRepository = routeRepository;
         this.userRepository = userRepository;
+        this.orsMatrixService = orsMatrixService;
     }
 
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
+        // 1. Hämta grunddata (Geokoda allt först!)
+        // Vi skapar en lista med ALLA punkter: [Start, ...Stopp..., Slut]
 
-        // 1) låt motorn skapa grundstopp
-        RouteOptimizationResponse base = routingEngine.optimize(request);
+        // A. Geokoda Start
+        GeocodingService.LatLng startPos = geocodingService
+                .geocodeFirst(request.startAddress())
+                .orElseThrow(() -> new RuntimeException("Could not geocode start address"));
 
-        // 2) geokoda stops som saknar coords
-        List<StopResponse> enriched = base.orderedStops().stream()
-                .map(s -> {
-                    Double lat = s.latitude();
-                    Double lng = s.longitude();
+        // B. Geokoda alla stopp
+        List<StopResponse> stopsWithCoords = request.stops().stream().map(s -> {
+            Double lat = s.latitude();
+            Double lng = s.longitude();
+            if (lat == null || lng == null) {
+                var maybe = geocodingService.geocodeFirst(s.address());
+                if (maybe.isPresent()) {
+                    lat = maybe.get().lat();
+                    lng = maybe.get().lng();
+                }
+            }
+            return new StopResponse(s.id(), s.label(), s.address(), lat, lng, 0);
+        }).toList();
 
-                    if (lat == null || lng == null) {
-                        var maybe = geocodingService.geocodeFirst(s.address());
-                        if (maybe.isPresent()) {
-                            lat = maybe.get().lat();
-                            lng = maybe.get().lng();
-                        }
-                    }
+        // C. Geokoda Slut
+        GeocodingService.LatLng endPos = geocodingService
+                .geocodeFirst(request.endAddress())
+                .orElseThrow(() -> new RuntimeException("Could not geocode end address"));
 
-                    return new StopResponse(
-                            s.id(),
-                            s.label(),
-                            s.address(),
-                            lat,
-                            lng,
-                            s.order()
-                    );
+
+        // 2. Förbered lista för Matrix-anrop
+        // Ordningen i listan till ORS blir: Index 0=Start, 1..N=Stopp, N+1=Slut
+        List<List<Double>> matrixRequestCoords = new ArrayList<>();
+
+        // Lägg till start [lon, lat] OBS: ORS vill ha Longitud först!
+        matrixRequestCoords.add(List.of(startPos.lng(), startPos.lat()));
+
+        // Lägg till alla stopp
+        for (StopResponse s : stopsWithCoords) {
+            if (s.longitude() != null && s.latitude() != null) {
+                matrixRequestCoords.add(List.of(s.longitude(), s.latitude()));
+            } else {
+                // Om vi misslyckades geokoda ett stopp, hoppa över det i optimeringen (eller kasta fel)
+                // För enkelhetens skull kastar vi fel nu så vi märker det.
+                throw new RuntimeException("Failed to geocode stop: " + s.address());
+            }
+        }
+
+        // Lägg till slut
+        matrixRequestCoords.add(List.of(endPos.lng(), endPos.lat()));
+
+
+        // 3. Hämta Tids-Matris från ORS! 🚀
+        // durations[i][j] = sekunder att köra från punkt i till j
+        double[][] durations = orsMatrixService.getDurations(matrixRequestCoords);
+
+
+        // 4. Optimera ordningen med "Nearest Neighbour" baserat på TID
+        List<StopResponse> orderedStops = solveTspNearestNeighbour(stopsWithCoords, durations);
+
+
+        // 5. Sätt ordningsindex
+        List<StopResponse> finalResult = IntStream.range(0, orderedStops.size())
+                .mapToObj(i -> {
+                    var s = orderedStops.get(i);
+                    return new StopResponse(s.id(), s.label(), s.address(), s.latitude(), s.longitude(), i);
                 })
                 .toList();
 
-        // 3) geokoda start och slut
-        GeocodingService.LatLng startPos = geocodingService
-                .geocodeFirst(request.startAddress())
-                .orElse(null);
-
-        GeocodingService.LatLng endPos = geocodingService
-                .geocodeFirst(request.endAddress())
-                .orElse(null);
-
-        // 4) sortera med NN + end-weighting
-        List<StopResponse> ordered = reorderNearestNeighbour(enriched, startPos, endPos);
-
-        // 5) sätt ordningsindex
-        List<StopResponse> withOrder = addOrderIndex(ordered);
-
-        return new RouteOptimizationResponse(withOrder, withOrder.size());
+        return new RouteOptimizationResponse(finalResult, finalResult.size());
     }
 
-    private List<StopResponse> reorderNearestNeighbour(
-            List<StopResponse> stops,
-            GeocodingService.LatLng startPos,
-            GeocodingService.LatLng endPos
-    ) {
-        if (stops.size() <= 1) return stops;
-
-        List<StopResponse> withCoords = new ArrayList<>();
-        List<StopResponse> withoutCoords = new ArrayList<>();
-
-        for (StopResponse s : stops) {
-            if (s.latitude() == null || s.longitude() == null) {
-                withoutCoords.add(s);
-            } else {
-                withCoords.add(s);
-            }
-        }
-
-        if (withCoords.size() <= 1) {
-            List<StopResponse> combined = new ArrayList<>(withCoords);
-            combined.addAll(withoutCoords);
-            return combined;
-        }
-
-        List<StopResponse> remaining = new ArrayList<>(withCoords);
+    /**
+     * Enkel TSP-lösare: Börja på Start, hitta stoppet med kortast körtid, åk dit, upprepa.
+     */
+    private List<StopResponse> solveTspNearestNeighbour(List<StopResponse> stops, double[][] durations) {
+        List<StopResponse> remaining = new ArrayList<>(stops);
         List<StopResponse> ordered = new ArrayList<>();
 
-        Double currentLat;
-        Double currentLng;
+        // Index 0 i durations-matrisen är START-punkten.
+        // Index 1..N är stoppen i 'stops'-listan.
+        // Sista index är SLUT-punkten.
 
-        if (startPos != null) {
-            currentLat = startPos.lat();
-            currentLng = startPos.lng();
-        } else {
-            StopResponse first = remaining.remove(0);
-            ordered.add(first);
-            currentLat = first.latitude();
-            currentLng = first.longitude();
-        }
+        int currentIndex = 0; // Vi börjar på START (index 0 i matrisen)
 
+        // Så länge vi har stopp kvar att besöka...
         while (!remaining.isEmpty()) {
-            StopResponse best = null;
-            double bestScore = Double.MAX_VALUE;
+            int bestStopIndexInRemaining = -1;
+            double minDuration = Double.MAX_VALUE;
 
-            for (StopResponse c : remaining) {
-                double dist = DistanceCalculator.distanceInKm(
-                        currentLat, currentLng,
-                        c.latitude(), c.longitude()
-                );
+            // Kolla avstånd till alla kvarvarande stopp
+            for (int i = 0; i < remaining.size(); i++) {
+                StopResponse candidate = remaining.get(i);
 
-                double endPenalty = 0.0;
-                if (endPos != null) {
-                    double distToEnd = DistanceCalculator.distanceInKm(
-                            c.latitude(), c.longitude(),
-                            endPos.lat(), endPos.lng()
-                    );
-                    endPenalty = distToEnd * END_WEIGHT;
-                }
+                // Hitta vilket index denna kandidat hade i den ursprungliga matrisen.
+                // Eftersom 'remaining' krymper måste vi veta original-indexet.
+                // Matrix-index för stopp X är: (stops.indexOf(candidate) + 1) eftersom Start är 0.
+                int matrixIndex = stops.indexOf(candidate) + 1;
 
-                double score = dist + endPenalty;
-
-                if (score < bestScore) {
-                    bestScore = score;
-                    best = c;
+                double durationToCandidate = durations[currentIndex][matrixIndex];
+                System.out.println("Kollar stopp: " + candidate.address() + " -> Tid: " + durationToCandidate + " sekunder");
+                if (durationToCandidate < minDuration) {
+                    minDuration = durationToCandidate;
+                    bestStopIndexInRemaining = i;
                 }
             }
 
-            remaining.remove(best);
-            ordered.add(best);
-            currentLat = best.latitude();
-            currentLng = best.longitude();
+            // Flytta det bästa stoppet till 'ordered'
+            StopResponse nextStop = remaining.remove(bestStopIndexInRemaining);
+            System.out.println("🏆 Valde nästa stopp: " + nextStop.address() + " (Tid: " + minDuration + "s)");
+            ordered.add(nextStop);
+
+            // Uppdatera currentIndex till det stopp vi just valde
+            currentIndex = stops.indexOf(nextStop) + 1;
         }
 
-        ordered.addAll(withoutCoords);
         return ordered;
     }
 
-    private List<StopResponse> addOrderIndex(List<StopResponse> stops) {
-        return IntStream.range(0, stops.size())
-                .mapToObj(i -> {
-                    var s = stops.get(i);
-                    return new StopResponse(
-                            s.id(),
-                            s.label(),
-                            s.address(),
-                            s.latitude(),
-                            s.longitude(),
-                            i
-                    );
-                })
-                .toList();
-    }
+    // --- SPARA & HÄMTA (Samma som förut) ---
+
     @Transactional
     public RouteEntity saveRoute(SaveRouteRequest request) {
-        // 1. Ta reda på vem som är inloggad
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-
-        // 2. Hämta användaren från DB
         UserEntity currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found in DB"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         RouteEntity entity = new RouteEntity(
                 request.name(),
@@ -190,8 +173,6 @@ public class RouteOptimizationService {
                 request.startAddress(),
                 request.endAddress()
         );
-
-        // 3. KOPPLA IHOP DEM!
         entity.setOwner(currentUser);
 
         request.stops().forEach(s -> {
@@ -204,14 +185,8 @@ public class RouteOptimizationService {
         return routeRepository.save(entity);
     }
 
-    // --- NY METOD: Hämta mina rutter ---
     public List<RouteEntity> getMyRoutes() {
-        // 1. Vem frågar?
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-
-        // 2. Hämta bara dennes rutter
         return routeRepository.findAllByOwnerUsername(username);
     }
 }
-
-
