@@ -190,6 +190,7 @@ export function SavedRoutesList({ onEdit }: Props) {
                             label: String(s.orderIndex),
                             order: s.orderIndex
                         }))}
+                        geometry={route.geometry}
                     />
                   </div>
                 )}

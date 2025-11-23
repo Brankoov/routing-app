@@ -138,3 +138,16 @@ button[type="submit"], .primary-btn {
   color: var(--secondary-color);
   background: transparent;
 }
+/* Kart-ikoner med siffror */
+.custom-marker-icon {
+
+  color: white;
+  border-radius: 50%;
+  border: 2px solid white;
+  display: flex !important; /* Viktigt för centrering */
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}

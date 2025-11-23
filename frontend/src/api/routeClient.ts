@@ -39,6 +39,27 @@ export interface SavedRoute {
     orderIndex: number;
   }[];
 }
+export interface RouteOptimizationResponse {
+  orderedStops: OrderedStop[];
+  totalStops: number;
+  geometry?: string; // <--- NYTT
+}
+
+// Och här
+export interface SavedRoute {
+  id: number;
+  name: string;
+  // ... (description, start/end är kvar)
+  geometry?: string; // <--- NYTT
+  // ... (stops är kvar)
+}
+
+// Spara-requesten behöver också geometry
+export interface SaveRouteRequest {
+  // ... (name, desc, start, end är kvar)
+  geometry?: string; // <--- NYTT
+  stops: OrderedStop[];
+}
 
 // --- HJÄLPFUNKTION FÖR HEADERS (Magin händer här) ---
 function getAuthHeaders() {

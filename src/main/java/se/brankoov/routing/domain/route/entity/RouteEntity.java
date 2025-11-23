@@ -17,6 +17,7 @@ public class RouteEntity {
 
     private String description;
 
+
     @ManyToOne
     @JoinColumn(name = "user_id") // Skapar kolumnen user_id i routes-tabellen
     private UserEntity owner;
@@ -28,14 +29,17 @@ public class RouteEntity {
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RouteStopEntity> stops = new ArrayList<>();
 
-    public RouteEntity() {
-    }
+    @Column(columnDefinition = "TEXT") // Gör plats för en lång sträng
+    private String geometry;
 
-    public RouteEntity(String name, String description,String startAddress, String endAddress) {
+    public RouteEntity(String name, String description,String startAddress, String endAddress, String geometry) {
         this.name = name;
         this.description = description;
         this.startAddress = startAddress;
         this.endAddress = endAddress;
+        this.geometry = geometry;
+    }
+    public RouteEntity() {
     }
 
     public void addStop(RouteStopEntity stop) {
@@ -65,4 +69,7 @@ public class RouteEntity {
 
     public UserEntity getOwner() { return owner; }
     public void setOwner(UserEntity owner) { this.owner = owner; }
+
+    public String getGeometry() { return geometry; }
+    public void setGeometry(String geometry) { this.geometry = geometry; }
 }

@@ -132,7 +132,8 @@ export function RoutePlanner({ routeToLoad }: Props) {
         stops: result.orderedStops,
         description: "Created via Frontend",
         startAddress: startAddress,
-        endAddress: endAddress
+        endAddress: endAddress,
+        geometry: result.geometry
       });
 
       setSuccessMsg("Rutt sparad i databasen! ✅");
@@ -328,6 +329,7 @@ export function RoutePlanner({ routeToLoad }: Props) {
             startAddress={startAddress}
             endAddress={endAddress}
             stops={result.orderedStops}
+            geometry={result.geometry}
           />
         </div>
       )}

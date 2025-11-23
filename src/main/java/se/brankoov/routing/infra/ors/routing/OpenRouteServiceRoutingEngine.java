@@ -1,7 +1,7 @@
 package se.brankoov.routing.infra.ors.routing;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 import se.brankoov.routing.api.route.RouteOptimizationRequest;
 import se.brankoov.routing.api.route.RouteOptimizationResponse;
 import se.brankoov.routing.api.route.StopResponse;
@@ -10,12 +10,6 @@ import se.brankoov.routing.domain.route.RoutingEngine;
 import java.util.List;
 import java.util.stream.IntStream;
 
-
-/**
- * Very early skeleton for real ORS routing.
- * This does NOT use ORS yet.
- * It just returns the stops in the same order as the request.
- */
 @Component
 public class OpenRouteServiceRoutingEngine implements RoutingEngine {
 
@@ -27,9 +21,7 @@ public class OpenRouteServiceRoutingEngine implements RoutingEngine {
 
     @Override
     public RouteOptimizationResponse optimize(RouteOptimizationRequest request) {
-        // just nu: fortfarande bara enkel ordning, ingen riktig ORS-anrop än
-
-
+        // Detta är bara en dummy som returnerar stoppen i samma ordning som de kom in
         List<StopResponse> stops = IntStream
                 .range(0, request.stops().size())
                 .mapToObj(i -> {
@@ -45,7 +37,7 @@ public class OpenRouteServiceRoutingEngine implements RoutingEngine {
                 })
                 .toList();
 
-        return new RouteOptimizationResponse(stops, stops.size());
+        // HÄR VAR FELET: Vi lägger till 'null' sist för geometry-fältet
+        return new RouteOptimizationResponse(stops, stops.size(), null);
     }
 }
-

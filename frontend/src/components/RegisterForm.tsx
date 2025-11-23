@@ -27,15 +27,8 @@ export function RegisterForm() {
   }
 
   return (
-    <div style={{ 
-      border: "1px solid #444", 
-      padding: "1.5rem", 
-      borderRadius: "8px", 
-      maxWidth: "300px", 
-      margin: "0 auto",
-      textAlign: "left"
-    }}>
-      <h3>Skapa Konto</h3>
+    <div className="card" style={{ maxWidth: "300px", margin: "0 auto", textAlign: "left" }}>
+      <h3 style={{marginTop: 0}}>Skapa Konto</h3>
       <form onSubmit={handleRegister} style={{ display: "grid", gap: "1rem" }}>
         <label>
           Användarnamn
@@ -44,7 +37,7 @@ export function RegisterForm() {
             value={username} 
             onChange={e => setUsername(e.target.value)} 
             required 
-            style={{ width: "100%", marginTop: "0.25rem" }}
+            style={{ marginTop: "0.25rem" }}
           />
         </label>
         
@@ -56,11 +49,11 @@ export function RegisterForm() {
             onChange={e => setPassword(e.target.value)} 
             required 
             minLength={4}
-            style={{ width: "100%", marginTop: "0.25rem" }}
+            style={{ marginTop: "0.25rem" }}
           />
         </label>
 
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading} style={{background: loading ? '#ccc' : '#333', color: 'white'}}>
           {loading ? "Skapar..." : "Registrera"}
         </button>
       </form>
@@ -68,7 +61,7 @@ export function RegisterForm() {
       {msg && (
         <p style={{ 
           marginTop: "1rem", 
-          color: msg.isError ? "red" : "lightgreen",
+          color: msg.isError ? "red" : "green",
           fontWeight: "bold"
         }}>
           {msg.text}
