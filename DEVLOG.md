@@ -179,3 +179,8 @@ The result is a smarter, more realistic ordering without needing full pathfindin
   Added a **Focus Point** parameter to prioritize addresses closer to the city center/suburbs.
 - Fine-tuned Optimization Heuristics.
   Adjusted the `END_WEIGHT` gravity factor to **0.2** in `RouteOptimizationService`. This balances the "Nearest Neighbour" logic with the destination direction, solving the issue of the route zigzagging between districts (e.g., Hägersten -> Skärholmen -> Hägersten).
+- Scaled up Route Planner capacity.
+  Increased the maximum allowed stops from 10 to **48** to fully utilize the OpenRouteService free tier limits (50 locations per matrix request).
+- Enhanced UX for long-running operations.
+  Implemented a loading overlay with a spinner and backdrop-blur effect in the Route Planner. This provides clear visual feedback while the backend calculates complex matrices and optimizations.
+- 

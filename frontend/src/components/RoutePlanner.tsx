@@ -27,7 +27,7 @@ type StopInput = {
   address: string;
 };
 
-const MAX_STOPS = 10;
+const MAX_STOPS = 48;
 
 type Props = {
   routeToLoad: SavedRoute | null;
@@ -150,6 +150,16 @@ export function RoutePlanner({ routeToLoad }: Props) {
     <section>
       {/* WRAPPAR FORMULÄRET I ETT KORT (.card) FÖR SNYGGARE DESIGN */}
       <div className="card">
+        {/* --- NYTT: SPINNER OVERLAY --- */}
+        {state === "loading" && (
+          <div className="loading-overlay">
+            <div className="spinner"></div>
+            <p style={{fontWeight: '600', color: '#333'}}>Beräknar rutt...</p>
+            <small style={{color: '#666'}}>Hämtar trafikdata & optimerar</small>
+          </div>
+        )}
+        {/* ----------------------------- */}
+
         <form
           onSubmit={handleSubmit}
           style={{
