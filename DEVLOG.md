@@ -162,4 +162,8 @@ The result is a smarter, more realistic ordering without needing full pathfindin
   Created `OrsMatrixService` to fetch a duration matrix (time in seconds) for all stops in a single API call.
   Refactored the `RouteOptimizationService` logic to solve the Travelling Salesman Problem (TSP) based on minimizing driving time rather than geometric distance.
 - Verified the logic via backend logs, confirming that the algorithm now accounts for road networks (e.g., highways vs. small roads) when ordering stops.
+- Major UI/UX Overhaul (Mobile First).
+  Transformed the application design from a dark "developer-mode" to a modern, light-themed mobile interface.
+  Implemented a Bottom Navigation Bar to switch seamlessly between the Route Planner and History views.
+  Restyled all inputs, buttons, and lists using a card-based layout with improved contrast and touch-friendly targets.
 - 

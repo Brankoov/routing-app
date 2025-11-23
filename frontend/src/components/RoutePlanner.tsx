@@ -1,14 +1,13 @@
-import { FormEvent, useEffect, useState } from "react"; // <--- Importera useEffect
+import { FormEvent, useEffect, useState } from "react";
 import {
   optimizeRoute,
   saveRoute,
   type RouteOptimizationResponse,
-  type SavedRoute, // <--- Import
+  type SavedRoute,
 } from "../api/routeClient";
 import RouteMap from "./RouteMap";
 import AutoAddressInput from "./AutoAddressInput";
 
-// ... (buildGoogleMapsUrl funktionen är kvar) ...
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
   longitude: number | null;
@@ -30,7 +29,6 @@ type StopInput = {
 
 const MAX_STOPS = 10;
 
-// NYTT: Ta emot props
 type Props = {
   routeToLoad: SavedRoute | null;
 };
@@ -48,34 +46,25 @@ export function RoutePlanner({ routeToLoad }: Props) {
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
 
-  // --- NYTT: Lyssna på routeToLoad och fyll i formuläret ---
   useEffect(() => {
     if (routeToLoad) {
-        // 1. Fyll i Start och Slut
         setStartAddress(routeToLoad.startAddress || "");
         setEndAddress(routeToLoad.endAddress || "");
-        
-        // 2. Fyll i namnet (och lägg till " - kopia" kanske?)
-        setRouteName(routeToLoad.name + " (Redigerad)");
+        setRouteName(routeToLoad.name + " (Kopia)");
 
-        // 3. Konvertera sparade stops till formulär-format
-        // Vi sorterar på orderIndex så de hamnar i rätt ordning
         const formStops = [...routeToLoad.stops]
             .sort((a, b) => a.orderIndex - b.orderIndex)
             .map(s => ({
-                id: String(Date.now() + Math.random()), // Skapa nytt unikt ID för React
+                id: String(Date.now() + Math.random()),
                 address: s.address
             }));
         
         setStops(formStops);
-        
-        // Nollställ gamla resultat
         setResult(null);
         setSuccessMsg(null);
         setState("idle");
     }
   }, [routeToLoad]);
-  // -------------------------------------------------------
 
   const hasEnoughData =
     startAddress.trim().length > 0 &&
@@ -157,151 +146,178 @@ export function RoutePlanner({ routeToLoad }: Props) {
   }
 
   return (
-    <section style={{ marginTop: "2rem" }}>
-      <h2>Planera rutt</h2>
-      <p>Fyll i adresser, optimera och spara.</p>
+    <section>
+      {/* WRAPPAR FORMULÄRET I ETT KORT (.card) FÖR SNYGGARE DESIGN */}
+      <div className="card">
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: "grid",
+            gap: "1.2rem", // Lite mer luft mellan fälten
+            textAlign: "left",
+          }}
+        >
+          <AutoAddressInput
+            label="Startadress"
+            value={startAddress}
+            onChange={setStartAddress}
+          />
 
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          display: "grid",
-          gap: "0.75rem",
-          maxWidth: "500px",
-          marginTop: "1rem",
-          textAlign: "left",
-          marginInline: "auto",
-        }}
-      >
-        <AutoAddressInput
-          label="Start address"
-          value={startAddress}
-          onChange={setStartAddress}
-        />
+          <div style={{ marginTop: "0.5rem" }}>
+            <label>Mellanstop</label>
+            
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.8rem'}}>
+              {stops.map((stop, index) => (
+                <div 
+                  key={stop.id} 
+                  style={{ 
+                    display: "flex", 
+                    alignItems: "center", // Centrera krysset vertikalt
+                    gap: "0.5rem" 
+                  }}
+                >
+                  {/* En siffra till vänster ser proffsigt ut */}
+                  <span style={{
+                      fontWeight: 'bold', 
+                      color: '#888', 
+                      width: '20px', 
+                      textAlign: 'center'
+                  }}>
+                      {index + 1}
+                  </span>
 
-        <AutoAddressInput
-          label="End address"
-          value={endAddress}
-          onChange={setEndAddress}
-        />
+                  <div style={{ flex: 1 }}>
+                    <AutoAddressInput
+                      label="" // Vi gömmer labeln här för renare look
+                      value={stop.address}
+                      onChange={(v) => handleStopChange(stop.id, v)}
+                    />
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => removeStop(stop.id)}
+                    title="Ta bort stopp"
+                    style={{
+                      background: "#ffebee",
+                      color: "#c62828",
+                      borderRadius: "50%",
+                      width: "40px",
+                      height: "40px",
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.2rem'
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
 
-        <div style={{ marginTop: "0.5rem" }}>
-          <strong>Stops</strong>
-          
-          {stops.map((stop, index) => (
-            <div 
-              key={stop.id} 
-              style={{ 
-                marginTop: "0.5rem", 
-                display: "flex", 
-                alignItems: "flex-end", 
-                gap: "0.5rem" 
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <AutoAddressInput
-                  label={`Stop ${index + 1}`}
-                  value={stop.address}
-                  onChange={(v) => handleStopChange(stop.id, v)}
-                />
-              </div>
-              
+            {stops.length < MAX_STOPS && (
               <button
                 type="button"
-                onClick={() => removeStop(stop.id)}
-                title="Ta bort stopp"
-                style={{
-                  background: "#aa2222",
-                  color: "white",
-                  border: "none",
-                  height: "38px",
-                  padding: "0 12px",
-                  marginBottom: "2px"
+                onClick={addStop}
+                style={{ 
+                    marginTop: "1rem", 
+                    background: 'transparent', 
+                    border: '2px dashed #ccc', 
+                    color: '#666',
+                    width: '100%'
                 }}
               >
-                ✕
+                + Lägg till stopp
               </button>
-            </div>
-          ))}
+            )}
+          </div>
 
-          {stops.length < MAX_STOPS && (
-            <button
-              type="button"
-              onClick={addStop}
-              style={{ marginTop: "0.5rem" }}
-            >
-              + Add stop
-            </button>
-          )}
-        </div>
+          <AutoAddressInput
+            label="Slutadress"
+            value={endAddress}
+            onChange={setEndAddress}
+          />
 
-        <button
-          type="submit"
-          disabled={!hasEnoughData || state === "loading" || state === "saving"}
-          style={{ marginTop: "1rem" }}
-        >
-          {state === "loading" ? "Optimerar…" : "1. Optimera Rutt"}
-        </button>
-      </form>
+          <button
+            type="submit"
+            className="primary-btn"
+            disabled={!hasEnoughData || state === "loading" || state === "saving"}
+            style={{ marginTop: "0.5rem", padding: '16px' }}
+          >
+            {state === "loading" ? "Beräknar rutt..." : "Optimera Rutt 🚀"}
+          </button>
+        </form>
 
-      {state === "error" && error && (
-        <p style={{ color: "red", marginTop: "0.5rem" }}>Fel: {error}</p>
-      )}
+        {state === "error" && error && (
+          <p style={{ color: "red", marginTop: "1rem", textAlign: 'center' }}>⚠️ {error}</p>
+        )}
 
-      {successMsg && (
-        <p style={{ color: "lightgreen", marginTop: "0.5rem", fontWeight: "bold" }}>
-          {successMsg}
-        </p>
-      )}
+        {successMsg && (
+          <p style={{ color: "green", marginTop: "1rem", textAlign: 'center', fontWeight: 'bold' }}>
+            {successMsg}
+          </p>
+        )}
+      </div>
 
+      {/* RESULTAT-DELEN */}
       {result && (
-        <div style={{ marginTop: "2rem", borderTop: "1px solid #444", paddingTop: "1rem" }}>
-          <h3>Resultat</h3>
-          <p>Total stops: {result.totalStops}</p>
+        <div className="card" style={{marginTop: '1rem', border: '2px solid #4caf50'}}>
+          <h3 style={{marginTop: 0}}>✅ Optimerat!</h3>
+          <p style={{color: '#666'}}>Totalt antal stopp: {result.totalStops}</p>
 
+          {/* SPARA-SEKTIONEN */}
           <div
             style={{
-              background: "#333",
+              background: "#f9f9f9",
               padding: "1rem",
-              borderRadius: "8px",
-              marginBottom: "1rem",
-              display: "flex",
-              gap: "1rem",
-              alignItems: "flex-end",
+              borderRadius: "12px",
+              marginBottom: "1.5rem",
+              border: '1px solid #eee'
             }}
           >
-            <div style={{ flex: 1 }}>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9em" }}>
-                Namn på rutten (t.ex. "Måndagsrundan")
-              </label>
-              <input
-                type="text"
-                value={routeName}
-                onChange={(e) => setRouteName(e.target.value)}
-                placeholder="Ange namn..."
-                style={{ width: "100%", padding: "8px" }}
-              />
+            <label>Spara som:</label>
+            <div style={{display: 'flex', gap: '0.5rem', marginTop: '0.5rem'}}>
+                <input
+                    type="text"
+                    value={routeName}
+                    onChange={(e) => setRouteName(e.target.value)}
+                    placeholder="T.ex. Måndagsrundan..."
+                    style={{ flex: 1 }}
+                />
+                <button
+                onClick={handleSave}
+                disabled={!routeName.trim() || state === "saving"}
+                style={{ background: "green", color: "white", whiteSpace: 'nowrap' }}
+                >
+                {state === "saving" ? "..." : "Spara"}
+                </button>
             </div>
-            <button
-              onClick={handleSave}
-              disabled={!routeName.trim() || state === "saving"}
-              style={{ background: "green", color: "white", border: "none" }}
-            >
-              {state === "saving" ? "Sparar..." : "2. Spara Rutt 💾"}
-            </button>
           </div>
 
           <div style={{ textAlign: "left", marginBottom: "1rem" }}>
-            <ul style={{ paddingLeft: "1.5rem" }}>
+            <ul style={{ paddingLeft: "0", listStyle: 'none' }}>
               {result.orderedStops.map((stop) => (
-                <li key={stop.id} style={{ marginBottom: "0.5rem" }}>
-                  <strong>#{stop.order}</strong> – {stop.address}{" "}
+                <li key={stop.id} style={{ 
+                    marginBottom: "0.5rem", 
+                    padding: '10px', 
+                    borderBottom: '1px solid #eee',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}>
+                  <div>
+                      <strong style={{marginRight: '8px', color: '#646cff'}}>#{stop.order + 1}</strong> 
+                      {stop.address}
+                  </div>
                   <a
                     href={buildGoogleMapsUrl(stop)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontSize: "0.85rem", marginLeft: "0.5rem", color: "#646cff" }}
+                    style={{ fontSize: "1.2rem", textDecoration: 'none' }}
                   >
-                    (Karta ↗)
+                    🗺️
                   </a>
                 </li>
               ))}

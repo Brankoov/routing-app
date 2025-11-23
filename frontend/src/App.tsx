@@ -1,57 +1,90 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import { HealthStatus } from './components/HealthStatus';
 import { RoutePlanner } from './components/RoutePlanner';
 import { SavedRoutesList } from './components/SavedRoutesList';
 import { RegisterForm } from './components/RegisterForm';
 import { LoginForm } from './components/LoginForm';
 import { CurrentUser } from './components/CurrentUser';
-import { type SavedRoute } from './api/routeClient'; // <--- Import
+import { type SavedRoute } from './api/routeClient';
+
+// Enkla ikoner (vi kan byta till SVG sen)
+const ICON_TRUCK = "🚛";
+const ICON_PIN = "📍";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  
-  // NYTT: State för att hålla rutten vi vill redigera
   const [routeToEdit, setRouteToEdit] = useState<SavedRoute | null>(null);
+  
+  // NYTT: Håller koll på vilken flik vi är på
+  const [activeTab, setActiveTab] = useState<'plan' | 'history'>('plan');
 
   useEffect(() => {
     const token = localStorage.getItem("jwt_token");
     setIsLoggedIn(!!token);
   }, []);
 
+  // Om man klickar "Redigera" i historiken, byt flik till planering
+  const handleEditRoute = (route: SavedRoute) => {
+    setRouteToEdit(route);
+    setActiveTab('plan');
+  };
+
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', maxWidth: '800px', margin: '0 auto' }}>
+    <div className="app-container">
       
-      {isLoggedIn && <CurrentUser />}
+      {/* Header-område (kan stylas snyggare sen) */}
+      {isLoggedIn && <div style={{padding: '10px'}}><CurrentUser /></div>}
 
-      <h1>Routing app – dev UI</h1>
-      
+      {/* --- LOGIN FLOW --- */}
       {!isLoggedIn ? (
-        <section style={{ display: "flex", gap: "1rem", flexWrap: "wrap", justifyContent: "center", marginBottom: "3rem" }}>
-          <RegisterForm />
-          <LoginForm />
-        </section>
+        <div style={{ padding: '2rem', paddingTop: '4rem' }}>
+          <h1 style={{marginBottom: '2rem'}}>Välkommen</h1>
+          <div style={{ display: "flex", flexDirection: 'column', gap: "2rem" }}>
+            <LoginForm />
+            <div style={{textAlign: 'center', opacity: 0.5}}>- eller -</div>
+            <RegisterForm />
+          </div>
+        </div>
       ) : (
-        <>
-          <p>Välkommen till ruttplaneraren!</p>
-          <hr style={{ margin: '2rem 0' }} />
+        /* --- HUVUD-APPEN --- */
+        <div style={{ padding: '1rem', paddingBottom: '80px' }}>
           
-          {/* NYTT: Skicka med routeToEdit till planeraren */}
-          <RoutePlanner routeToLoad={routeToEdit} />
-          
-          {/* NYTT: Skicka med setRouteToEdit till listan */}
-          <SavedRoutesList onEdit={(route) => {
-            setRouteToEdit(route);
-            // Scrolla upp till toppen smidigt
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }} />
-        </>
-      )}
+          {/* VY 1: PLANERA (Lastbilen) */}
+          {activeTab === 'plan' && (
+            <div>
+              <h2 style={{fontSize: '1.5rem', marginBottom: '1rem'}}>Planera rutt</h2>
+              {/* RoutePlanner sköter "Address 1...", "Välj bil" osv */}
+              <RoutePlanner routeToLoad={routeToEdit} />
+            </div>
+          )}
 
-      <div style={{marginTop: '4rem', opacity: 0.5, fontSize: '0.8rem'}}>
-         <HealthStatus />
-      </div>
-      
+          {/* VY 2: HISTORIK (Kartnålen) */}
+          {activeTab === 'history' && (
+            <div>
+              <h2 style={{fontSize: '1.5rem', marginBottom: '1rem'}}>Historik</h2>
+              <SavedRoutesList onEdit={handleEditRoute} />
+            </div>
+          )}
+
+          {/* --- BOTTOM NAVIGATION BAR --- */}
+          <nav className="bottom-nav">
+            <button 
+              className={`nav-item ${activeTab === 'plan' ? 'active' : ''}`}
+              onClick={() => setActiveTab('plan')}
+            >
+              {ICON_TRUCK}
+            </button>
+            
+            <button 
+              className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
+              onClick={() => setActiveTab('history')}
+            >
+              {ICON_PIN}
+            </button>
+          </nav>
+
+        </div>
+      )}
     </div>
   );
 }

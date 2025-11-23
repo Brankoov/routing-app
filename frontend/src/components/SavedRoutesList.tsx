@@ -2,24 +2,24 @@ import { useEffect, useState } from "react";
 import { fetchAllRoutes, deleteRoute, type SavedRoute } from "../api/routeClient";
 import RouteMap from "./RouteMap";
 
+// FIXAD: Google Maps-länk som fungerar bra på både mobil och desktop
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
   longitude: number | null;
   address: string;
 }) {
   if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
-    return `http://googleusercontent.com/maps.google.com/maps?q=${stop.latitude},${stop.longitude}`;
+    // Denna länkform öppnar Google Maps-appen direkt på mobilen
+    return `https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}`;
   }
   const q = encodeURIComponent(stop.address);
-  return `http://googleusercontent.com/maps.google.com/maps?q=${q}`;
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
 }
 
-// NYTT: Props definition
 type Props = {
   onEdit: (route: SavedRoute) => void;
 };
 
-// Ta emot props här
 export function SavedRoutesList({ onEdit }: Props) {
   const [routes, setRoutes] = useState<SavedRoute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,28 +61,20 @@ export function SavedRoutesList({ onEdit }: Props) {
     else setExpandedId(id);
   }
 
-  // NYTT: Hantera redigering
   function handleEditClick(route: SavedRoute, e: React.MouseEvent) {
-    e.stopPropagation(); // Så vi inte togglar expand
+    e.stopPropagation();
     onEdit(route);
   }
 
-  if (loading) return <p>Laddar sparade rutter...</p>;
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
+  if (loading) return <p style={{textAlign: 'center', color: '#666'}}>Laddar historik...</p>;
+  if (error) return <p style={{ color: "red", textAlign: 'center' }}>{error}</p>;
 
   return (
-    <section style={{ marginTop: "3rem", borderTop: "1px solid #555", paddingTop: "2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2>🗂️ Mina Sparade Rutter</h2>
-        <button onClick={loadRoutes} style={{ padding: "5px 10px", fontSize: "0.8em" }}>
-          🔄 Uppdatera
-        </button>
-      </div>
-
+    <section>
       {routes.length === 0 ? (
-        <p>Inga sparade rutter än.</p>
+        <p style={{textAlign: 'center', color: '#999', marginTop: '2rem'}}>Inga sparade rutter än.</p>
       ) : (
-        <div style={{ display: "grid", gap: "1rem", marginTop: "1rem" }}>
+        <div style={{ display: "grid", gap: "1rem" }}>
           {routes.map((route) => {
             const isExpanded = expandedId === route.id;
             
@@ -90,64 +82,100 @@ export function SavedRoutesList({ onEdit }: Props) {
               <div
                 key={route.id}
                 onClick={() => toggleExpand(route.id)}
+                className="card" // ANVÄNDER CSS-KLASSEN .card NU
                 style={{
-                  background: "#333",
-                  padding: "1rem",
-                  borderRadius: "8px",
+                  // Vi tar bort background: #333 härifrån!
                   textAlign: "left",
-                  border: isExpanded ? "1px solid #646cff" : "1px solid #444",
+                  border: isExpanded ? "2px solid #646cff" : "1px solid transparent",
                   cursor: "pointer",
                   transition: "all 0.2s"
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <h3 style={{ margin: "0 0 0.5rem 0", color: isExpanded ? "#646cff" : "white" }}>
-                    {route.name} {isExpanded ? "🔼" : "🔽"}
-                  </h3>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    {/* Mörk textfärg (#333) tas från body/css automatiskt nu */}
+                    <h3 style={{ margin: "0 0 0.25rem 0", fontSize: '1.1rem' }}>
+                      {route.name}
+                    </h3>
+                    <small style={{ color: "#666" }}>
+                      {new Date(route.createdAt).toLocaleDateString()} • {route.stops.length} stopp
+                    </small>
+                  </div>
                   
                   <div style={{display: 'flex', gap: '0.5rem'}}>
-                    {/* NY KNAPP: REDIGERA */}
+                    {/* Ikon-knappar sparar plats på mobilen */}
                     <button 
                       onClick={(e) => handleEditClick(route, e)}
-                      style={{ background: "#228822", color: "white", border: "none", padding: "4px 8px", borderRadius: "4px" }}
-                      title="Ladda upp i planeraren för att ändra"
+                      style={{ background: "#e0f2f1", color: "#00695c", padding: "8px", borderRadius: "50%", minWidth: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      title="Redigera"
                     >
-                      ✏️ Redigera
+                      ✏️
                     </button>
 
                     <button 
                       onClick={(e) => handleDelete(route.id, e)}
-                      style={{ background: "#aa2222", color: "white", border: "none", padding: "4px 8px", borderRadius: "4px" }}
+                      style={{ background: "#ffebee", color: "#c62828", padding: "8px", borderRadius: "50%", minWidth: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      title="Ta bort"
                     >
-                      Ta bort
+                      🗑️
                     </button>
                   </div>
                 </div>
-                
-                <small style={{ color: "#aaa" }}>
-                  Skapad: {new Date(route.createdAt).toLocaleDateString()} • {route.stops.length} stopp
-                </small>
 
-                <div style={{ marginTop: '0.5rem', fontSize: '0.9em', color: '#ddd' }}>
-                    {route.startAddress && <div>🏁 <strong>Start:</strong> {route.startAddress}</div>}
+                {/* Start och Slut - Syns alltid */}
+                <div style={{ marginTop: '0.75rem', fontSize: '0.9em', color: '#555', background: '#f9f9f9', padding: '8px', borderRadius: '8px' }}>
+                    {route.startAddress && <div style={{marginBottom: '4px'}}>🏁 <strong>Start:</strong> {route.startAddress}</div>}
                     {route.endAddress && <div>🏁 <strong>Slut:</strong> {route.endAddress}</div>}
                 </div>
 
+                {/* EXPANDERAD DEL */}
                 {isExpanded && (
-                  <div style={{ marginTop: "1.5rem", borderTop: "1px solid #555", paddingTop: "1rem", cursor: "default" }} onClick={e => e.stopPropagation()}>
-                    <p style={{fontStyle: 'italic'}}>{route.description}</p>
+                  <div style={{ marginTop: "1rem", borderTop: "1px solid #eee", paddingTop: "1rem", cursor: "default" }} onClick={e => e.stopPropagation()}>
                     
-                    <ul style={{ paddingLeft: "1.2rem", marginBottom: '1.5rem' }}>
+                    {route.description && <p style={{fontStyle: 'italic', color: '#666', marginBottom: '1rem'}}>{route.description}</p>}
+                    
+                    <ul style={{ paddingLeft: "0", listStyle: 'none', marginBottom: '1.5rem' }}>
                       {route.stops.map((stop) => (
-                        <li key={stop.id} style={{marginBottom: '0.5rem'}}>
-                          <strong>#{stop.orderIndex}</strong> – {stop.address}
+                        <li key={stop.id} style={{
+                            marginBottom: '0.75rem', 
+                            padding: '10px', 
+                            background: '#fff', 
+                            border: '1px solid #eee', 
+                            borderRadius: '8px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                          <div>
+                            <span style={{
+                                background: '#333', 
+                                color: 'white', 
+                                borderRadius: '50%', 
+                                width: '24px', 
+                                height: '24px', 
+                                display: 'inline-flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                fontSize: '0.8em',
+                                marginRight: '8px'
+                            }}>
+                                {stop.orderIndex + 1}
+                            </span>
+                            <span style={{fontSize: '0.95em'}}>{stop.address}</span>
+                          </div>
+                          
                           <a
                             href={buildGoogleMapsUrl(stop)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ fontSize: "0.85rem", marginLeft: "0.5rem", color: "#646cff" }}
+                            style={{ 
+                                fontSize: "1.2rem", 
+                                textDecoration: 'none',
+                                padding: '4px'
+                            }}
+                            title="Öppna i Google Maps"
                           >
-                            (Öppna karta)
+                            🗺️
                           </a>
                         </li>
                       ))}
