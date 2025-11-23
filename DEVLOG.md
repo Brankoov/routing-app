@@ -174,3 +174,8 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - Refined optimization logic:
   * Replaced the basic Nearest Neighbour algorithm with a **2-Opt Local Search** implementation to reduce route crossovers and improve flow.
   * Adjusted weighting constants to balance local proximity vs. final destination direction.
+- Refined Geocoding Logic for better accuracy within the target region.
+  Configured `GeocodingService` with a **Bounding Box** (boundary.rect) restricted to the Greater Stockholm area to prevent irrelevant results from other cities (e.g., Linköping).
+  Added a **Focus Point** parameter to prioritize addresses closer to the city center/suburbs.
+- Fine-tuned Optimization Heuristics.
+  Adjusted the `END_WEIGHT` gravity factor to **0.2** in `RouteOptimizationService`. This balances the "Nearest Neighbour" logic with the destination direction, solving the issue of the route zigzagging between districts (e.g., Hägersten -> Skärholmen -> Hägersten).

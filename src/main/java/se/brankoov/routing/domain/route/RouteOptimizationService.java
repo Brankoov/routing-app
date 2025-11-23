@@ -25,7 +25,7 @@ import java.util.stream.IntStream;
 public class RouteOptimizationService {
 
     // Vi nollställer denna. Vi litar på 2-Opt istället för "gissningar".
-    private static final double END_WEIGHT = 0.0;
+    private static final double END_WEIGHT = 0.2;
 
     private final RoutingEngine routingEngine;
     private final GeocodingService geocodingService;
