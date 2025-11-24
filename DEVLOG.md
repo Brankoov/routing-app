@@ -190,4 +190,7 @@ The result is a smarter, more realistic ordering without needing full pathfindin
   Updated `GeocodingService` to check the database for existing results before calling the OpenRouteService API.
   Used `ObjectMapper` to serialize/deserialize JSON responses for storage.
   Verified effectiveness: Repeated searches now consume 0 API credits.
+- Enhanced Route Execution UX.
+  Implemented a client-side "Mark as Completed" feature in the `SavedRoutesList`. Users can now toggle stops as done, which visually strikes through the address and grays out the navigation link, helping drivers keep track of their progress during a route.
+  Updated Google Maps deep links to ensuring they open correctly in the native Maps app on mobile devices.
 - 
