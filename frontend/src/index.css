@@ -106,18 +106,18 @@ button[type="submit"], .primary-btn {
   overflow: hidden;   /* <--- OCH DENNA (så hörnen klipps snyggt) */
 }
 .loading-overlay {
-  position: absolute;
+  position: fixed; /* <--- ÄNDRAT FRÅN absolute TILL fixed */
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.85); /* Vit, lite genomskinlig */
-  backdrop-filter: blur(4px); /* Frostat glas-effekt (snyggt!) */
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  z-index: 50;
+  z-index: 2000; /* <--- HÖJT VÄRDE (så den täcker menyer och allt) */
   animation: fadeIn 0.3s ease-out;
 }
 

@@ -183,4 +183,11 @@ The result is a smarter, more realistic ordering without needing full pathfindin
   Increased the maximum allowed stops from 10 to **48** to fully utilize the OpenRouteService free tier limits (50 locations per matrix request).
 - Enhanced UX for long-running operations.
   Implemented a loading overlay with a spinner and backdrop-blur effect in the Route Planner. This provides clear visual feedback while the backend calculates complex matrices and optimizations.
+
+## 2025-24-11
+- Implemented Persistent Geocoding Cache to optimize API usage.
+  Created `GeocodeCacheEntity` and `GeocodeCacheRepository` to store search queries and results in PostgreSQL.
+  Updated `GeocodingService` to check the database for existing results before calling the OpenRouteService API.
+  Used `ObjectMapper` to serialize/deserialize JSON responses for storage.
+  Verified effectiveness: Repeated searches now consume 0 API credits.
 - 
