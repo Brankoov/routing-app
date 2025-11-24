@@ -193,4 +193,7 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - Enhanced Route Execution UX.
   Implemented a client-side "Mark as Completed" feature in the `SavedRoutesList`. Users can now toggle stops as done, which visually strikes through the address and grays out the navigation link, helping drivers keep track of their progress during a route.
   Updated Google Maps deep links to ensuring they open correctly in the native Maps app on mobile devices.
+- Implemented Demo Data functionality.
+  Created a dataset (`demoRoute.ts`) containing ~30 real-world addresses in the Stockholm area.
+  Added a "Load Demo" button to the Route Planner to instantly populate the form. This facilitates rapid stress-testing of the 48-stop limit, Matrix API performance, and UI rendering for large lists.
 - 

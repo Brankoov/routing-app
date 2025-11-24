@@ -7,6 +7,7 @@ import {
 } from "../api/routeClient";
 import RouteMap from "./RouteMap";
 import AutoAddressInput from "./AutoAddressInput";
+import { DEMO_ROUTE } from "../data/demoRoute";
 
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
@@ -65,6 +66,20 @@ export function RoutePlanner({ routeToLoad }: Props) {
         setState("idle");
     }
   }, [routeToLoad]);
+
+  const loadDemoData = () => {
+    setStartAddress(DEMO_ROUTE.start);
+    setEndAddress(DEMO_ROUTE.end);
+
+    const demoStops = DEMO_ROUTE.stops.map((address, index) => ({
+      id: String(Date.now() + index), 
+      address: address
+    }));
+
+    setStops(demoStops);
+    setResult(null);
+    setRouteName("Stor Måndagsrunda (Demo)");
+  };
 
   const hasEnoughData =
     startAddress.trim().length > 0 &&
@@ -148,9 +163,8 @@ export function RoutePlanner({ routeToLoad }: Props) {
 
   return (
     <section>
-      {/* WRAPPAR FORMULÄRET I ETT KORT (.card) FÖR SNYGGARE DESIGN */}
       <div className="card">
-        {/* --- NYTT: SPINNER OVERLAY --- */}
+        {/* --- SPINNER OVERLAY --- */}
         {state === "loading" && (
           <div className="loading-overlay">
             <div className="spinner"></div>
@@ -158,13 +172,30 @@ export function RoutePlanner({ routeToLoad }: Props) {
             <small style={{color: '#666'}}>Hämtar trafikdata & optimerar</small>
           </div>
         )}
-        {/* ----------------------------- */}
+
+        {/* --- DEMO KNAPP --- */}
+        <div style={{marginBottom: '1.5rem', textAlign: 'center'}}>
+            <button 
+                type="button" 
+                onClick={loadDemoData}
+                style={{
+                    background: '#e0f7fa', 
+                    color: '#006064', 
+                    border: '1px dashed #0097a7',
+                    width: '100%',
+                    padding: '10px',
+                    fontSize: '0.9rem'
+                }}
+            >
+                🧪 Ladda 30-stopp Demo
+            </button>
+        </div>
 
         <form
           onSubmit={handleSubmit}
           style={{
             display: "grid",
-            gap: "1.2rem", // Lite mer luft mellan fälten
+            gap: "1.2rem",
             textAlign: "left",
           }}
         >
@@ -183,11 +214,10 @@ export function RoutePlanner({ routeToLoad }: Props) {
                   key={stop.id} 
                   style={{ 
                     display: "flex", 
-                    alignItems: "center", // Centrera krysset vertikalt
+                    alignItems: "center", 
                     gap: "0.5rem" 
                   }}
                 >
-                  {/* En siffra till vänster ser proffsigt ut */}
                   <span style={{
                       fontWeight: 'bold', 
                       color: '#888', 
@@ -199,7 +229,7 @@ export function RoutePlanner({ routeToLoad }: Props) {
 
                   <div style={{ flex: 1 }}>
                     <AutoAddressInput
-                      label="" // Vi gömmer labeln här för renare look
+                      label="" 
                       value={stop.address}
                       onChange={(v) => handleStopChange(stop.id, v)}
                     />
@@ -272,13 +302,11 @@ export function RoutePlanner({ routeToLoad }: Props) {
         )}
       </div>
 
-      {/* RESULTAT-DELEN */}
       {result && (
         <div className="card" style={{marginTop: '1rem', border: '2px solid #4caf50'}}>
           <h3 style={{marginTop: 0}}>✅ Optimerat!</h3>
           <p style={{color: '#666'}}>Totalt antal stopp: {result.totalStops}</p>
 
-          {/* SPARA-SEKTIONEN */}
           <div
             style={{
               background: "#f9f9f9",
