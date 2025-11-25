@@ -49,9 +49,9 @@ public class SecurityConfig {
 
         // 🔹 Här lägger vi till vilka origins som får anropa ditt API
         config.setAllowedOrigins(List.of(
-                "http://localhost:5173",    // Vite dev-server (frontend)
-                "https://routing-app.vercel.app"     // extra om du kör nåt annat
-                // senare: lägg till din Render-frontend-URL här
+                "http://localhost:5173",            // Localhost
+                "https://routing-app.vercel.app",   // Huvudlänken
+                "https://routing-app-green.vercel.app"
         ));
 
         // Vilka HTTP-metoder vi släpper igenom
