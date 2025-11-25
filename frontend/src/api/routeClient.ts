@@ -97,7 +97,7 @@ export async function optimizeRoute(params: {
 }
 
 export async function saveRoute(data: SaveRouteRequest): Promise<void> {
-  const response = await fetch('http://localhost:8080/api/routes/save', {
+  const response = await fetch(`${API_BASE_URL}/api/routes/save`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
@@ -109,7 +109,8 @@ export async function saveRoute(data: SaveRouteRequest): Promise<void> {
 }
 
 export async function fetchAllRoutes(): Promise<SavedRoute[]> {
-  const response = await fetch('http://localhost:8080/api/routes', {
+  // HÄR ÄR ÄNDRINGEN:
+  const response = await fetch(`${API_BASE_URL}/api/routes`, {
     method: 'GET',
     headers: getAuthHeaders(),
   });
@@ -128,7 +129,7 @@ export async function fetchAllRoutes(): Promise<SavedRoute[]> {
 }
 
 export async function deleteRoute(id: number): Promise<void> {
-  const response = await fetch(`http://localhost:8080/api/routes/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/api/routes/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
