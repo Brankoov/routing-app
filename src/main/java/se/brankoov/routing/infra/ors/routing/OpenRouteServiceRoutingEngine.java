@@ -38,6 +38,6 @@ public class OpenRouteServiceRoutingEngine implements RoutingEngine {
                 .toList();
 
         // HÄR VAR FELET: Vi lägger till 'null' sist för geometry-fältet
-        return new RouteOptimizationResponse(stops, stops.size(), null);
+        return new RouteOptimizationResponse(stops, stops.size(), null, 0L);
     }
 }

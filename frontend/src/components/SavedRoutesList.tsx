@@ -8,12 +8,15 @@ function buildGoogleMapsUrl(stop: {
   longitude: number | null;
   address: string;
 }) {
+  // Använder /13 versionen som vi vet fungerar
+  const baseUrl = "https://www.google.com/maps/search/?api=1&query=";
+
   if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
-    // Denna länkform öppnar Google Maps-appen direkt på mobilen
-    return `http://googleusercontent.com/maps.google.com/maps?q=${stop.latitude},${stop.longitude}`;
+    return `${baseUrl}${stop.latitude},${stop.longitude}`;
   }
+  
   const q = encodeURIComponent(stop.address);
-  return `http://googleusercontent.com/maps.google.com/maps?q=${q}`;
+  return `${baseUrl}${q}`;
 }
 
 type Props = {
@@ -135,13 +138,11 @@ export function SavedRoutesList({ onEdit }: Props) {
                   </div>
                 </div>
 
-                {/* Start och Slut - Syns alltid */}
                 <div style={{ marginTop: '0.75rem', fontSize: '0.9em', color: '#555', background: '#f9f9f9', padding: '8px', borderRadius: '8px' }}>
                     {route.startAddress && <div style={{marginBottom: '4px'}}>🏁 <strong>Start:</strong> {route.startAddress}</div>}
                     {route.endAddress && <div>🏁 <strong>Slut:</strong> {route.endAddress}</div>}
                 </div>
 
-                {/* EXPANDERAD DEL */}
                 {isExpanded && (
                   <div style={{ marginTop: "1rem", borderTop: "1px solid #eee", paddingTop: "1rem", cursor: "default" }} onClick={e => e.stopPropagation()}>
                     
@@ -192,7 +193,6 @@ export function SavedRoutesList({ onEdit }: Props) {
 
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <span style={{
-                                    // Stryk över texten om klar
                                     textDecoration: isCompleted ? 'line-through' : 'none',
                                     fontWeight: '500',
                                     color: isCompleted ? '#888' : '#333',
@@ -200,7 +200,6 @@ export function SavedRoutesList({ onEdit }: Props) {
                                 }}>
                                   {stop.address}
                                 </span>
-                                {/* Visa ordningsnummer snyggt under */}
                                 <span style={{fontSize: '0.8em', color: '#999'}}>
                                    Stopp #{stop.orderIndex + 1}
                                 </span>
@@ -213,10 +212,10 @@ export function SavedRoutesList({ onEdit }: Props) {
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{ 
-                                  fontSize: "1.4rem", // Större ikon för feta fingrar
+                                  fontSize: "1.4rem",
                                   textDecoration: 'none',
                                   padding: '8px',
-                                  filter: isCompleted ? 'grayscale(100%)' : 'none', // Gråa ut kartan om klar
+                                  filter: isCompleted ? 'grayscale(100%)' : 'none',
                                   opacity: isCompleted ? 0.5 : 1
                               }}
                               title="Navigera med Google Maps"

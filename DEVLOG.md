@@ -196,4 +196,12 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - Implemented Demo Data functionality.
   Created a dataset (`demoRoute.ts`) containing ~30 real-world addresses in the Stockholm area.
   Added a "Load Demo" button to the Route Planner to instantly populate the form. This facilitates rapid stress-testing of the 48-stop limit, Matrix API performance, and UI rendering for large lists.
+
+## 2025-25-11
+- Added a "Time Calculator" feature.
+  The backend now calculates the total driving time for the optimized route using data from the Matrix API.
+  Updated the database (`RouteEntity`) to save this total duration.
+- Updated the User Interface (UI).
+  The Route Planner and Saved Routes list now show "Driving Time".
+  Added a feature where the user can input "Time per stop" (e.g., 5 minutes) to automatically calculate the total work day duration.
 - 

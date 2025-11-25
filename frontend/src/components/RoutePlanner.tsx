@@ -8,17 +8,20 @@ import {
 import RouteMap from "./RouteMap";
 import AutoAddressInput from "./AutoAddressInput";
 import { DEMO_ROUTE } from "../data/demoRoute";
+import { formatDuration } from "../api/routeClient";
 
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
   longitude: number | null;
   address: string;
 }) {
+  const baseUrl = "https://www.google.com/maps/search/?api=1&query=";
+
   if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
-    return `http://googleusercontent.com/maps.google.com/maps?q=${stop.latitude},${stop.longitude}`;
+    return `${baseUrl}${stop.latitude},${stop.longitude}`;
   }
   const q = encodeURIComponent(stop.address);
-  return `http://googleusercontent.com/maps.google.com/maps?q=${q}`;
+  return `${baseUrl}${q}`;
 }
 
 type LoadState = "idle" | "loading" | "ok" | "error" | "saving";
@@ -46,6 +49,9 @@ export function RoutePlanner({ routeToLoad }: Props) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // NYTT: State för tid per stopp (Default 5 min)
+  const [stopTime, setStopTime] = useState(5);
 
   useEffect(() => {
     if (routeToLoad) {
@@ -148,7 +154,8 @@ export function RoutePlanner({ routeToLoad }: Props) {
         description: "Created via Frontend",
         startAddress: startAddress,
         endAddress: endAddress,
-        geometry: result.geometry
+        geometry: result.geometry,
+        totalDuration: result.totalDuration // <--- NYTT: Skicka med tiden till DB
       });
 
       setSuccessMsg("Rutt sparad i databasen! ✅");
@@ -164,7 +171,7 @@ export function RoutePlanner({ routeToLoad }: Props) {
   return (
     <section>
       <div className="card">
-        {/* --- SPINNER OVERLAY --- */}
+        
         {state === "loading" && (
           <div className="loading-overlay">
             <div className="spinner"></div>
@@ -173,7 +180,6 @@ export function RoutePlanner({ routeToLoad }: Props) {
           </div>
         )}
 
-        {/* --- DEMO KNAPP --- */}
         <div style={{marginBottom: '1.5rem', textAlign: 'center'}}>
             <button 
                 type="button" 
@@ -306,6 +312,35 @@ export function RoutePlanner({ routeToLoad }: Props) {
         <div className="card" style={{marginTop: '1rem', border: '2px solid #4caf50'}}>
           <h3 style={{marginTop: 0}}>✅ Optimerat!</h3>
           <p style={{color: '#666'}}>Totalt antal stopp: {result.totalStops}</p>
+
+          {/* --- NY TID-KALKYLATOR --- */}
+          <div style={{background: '#e3f2fd', padding: '1rem', borderRadius: '12px', marginBottom: '1rem', border: '1px solid #bbdefb'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
+                <span style={{color: '#333'}}>🚗 Ren körtid:</span>
+                <strong>{result.totalDuration ? formatDuration(result.totalDuration) : "-"}</strong>
+            </div>
+            
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.5rem'}}>
+                <span style={{color: '#333'}}>📦 Tid per stopp:</span>
+                <input 
+                    type="number" 
+                    value={stopTime} 
+                    onChange={e => setStopTime(Number(e.target.value))}
+                    style={{width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold'}}
+                />
+                <span style={{color: '#333'}}>min</span>
+            </div>
+
+            <div style={{borderTop: '1px solid #ccc', paddingTop: '0.5rem', marginTop: '0.5rem', fontWeight: 'bold', fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between', color: '#0d47a1'}}>
+                <span>⏱️ Total arbetstid:</span>
+                <span>
+                    {result.totalDuration 
+                        ? formatDuration(result.totalDuration + (result.totalStops * stopTime * 60)) 
+                        : "-"}
+                </span>
+            </div>
+          </div>
+          {/* ------------------------- */}
 
           <div
             style={{

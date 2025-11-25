@@ -17,14 +17,12 @@ import se.brankoov.routing.infra.ors.OrsDirectionsService;
 import se.brankoov.routing.infra.ors.OrsMatrixService;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
 @Service
 public class RouteOptimizationService {
 
-    // Vi nollställer denna. Vi litar på 2-Opt istället för "gissningar".
     private static final double END_WEIGHT = 0.2;
 
     private final RoutingEngine routingEngine;
@@ -76,28 +74,26 @@ public class RouteOptimizationService {
 
         // 4. Bygg Matrix Request
         List<List<Double>> matrixRequestCoords = new ArrayList<>();
-        matrixRequestCoords.add(List.of(startPos.lng(), startPos.lat())); // Index 0
+        matrixRequestCoords.add(List.of(startPos.lng(), startPos.lat()));
         for (StopResponse s : stopsWithCoords) {
             if (s.longitude() != null && s.latitude() != null) {
-                matrixRequestCoords.add(List.of(s.longitude(), s.latitude())); // Index 1..N
+                matrixRequestCoords.add(List.of(s.longitude(), s.latitude()));
             } else {
                 throw new RuntimeException("Failed to geocode stop: " + s.address());
             }
         }
-        matrixRequestCoords.add(List.of(endPos.lng(), endPos.lat())); // Sista Index
+        matrixRequestCoords.add(List.of(endPos.lng(), endPos.lat()));
 
         // 5. Hämta Matris
         double[][] durations = orsMatrixService.getDurations(matrixRequestCoords);
 
         System.out.println("✅ ORS Matrix svarade! Storlek: " + durations.length + "x" + durations[0].length);
 
-        // 6. Initial lösning (Nearest Neighbour)
+        // 6. Optimera (NN + 2-Opt)
         List<StopResponse> initialRoute = solveTspNearestNeighbour(stopsWithCoords, durations);
-
-        // 7. Förbättra lösningen med 2-Opt (Tar bort korsningar och sicksack)
         List<StopResponse> optimizedRoute = optimizeTwoOpt(initialRoute, durations, stopsWithCoords);
 
-        // 8. Hämta Geometri (Vägen)
+        // 7. Hämta Geometri
         List<List<Double>> finalPath = new ArrayList<>();
         finalPath.add(List.of(startPos.lng(), startPos.lat()));
         for (StopResponse s : optimizedRoute) {
@@ -107,6 +103,9 @@ public class RouteOptimizationService {
 
         String geometry = orsDirectionsService.getRouteGeometry(finalPath);
 
+        // 8. Räkna ut total tid (NYTT!)
+        long totalSeconds = calculateTotalDuration(optimizedRoute, durations, stopsWithCoords);
+
         // 9. Returnera
         List<StopResponse> finalResult = IntStream.range(0, optimizedRoute.size())
                 .mapToObj(i -> {
@@ -115,12 +114,26 @@ public class RouteOptimizationService {
                 })
                 .toList();
 
-        return new RouteOptimizationResponse(finalResult, finalResult.size(), geometry);
+        return new RouteOptimizationResponse(finalResult, finalResult.size(), geometry, totalSeconds);
     }
 
-    /**
-     * Grundläggande Nearest Neighbour
-     */
+    // --- HJÄLPMETOD FÖR TID ---
+    private long calculateTotalDuration(List<StopResponse> route, double[][] durations, List<StopResponse> originalStops) {
+        long totalTime = 0;
+        int endIndex = durations.length - 1;
+        int prevMatrixIndex = 0; // Start
+
+        for (StopResponse stop : route) {
+            int currentMatrixIndex = originalStops.indexOf(stop) + 1;
+            totalTime += durations[prevMatrixIndex][currentMatrixIndex];
+            prevMatrixIndex = currentMatrixIndex;
+        }
+        // Till slut
+        totalTime += durations[prevMatrixIndex][endIndex];
+        return totalTime;
+    }
+
+    // --- TSP LÖSARE (Samma som förut) ---
     private List<StopResponse> solveTspNearestNeighbour(List<StopResponse> stops, double[][] durations) {
         List<StopResponse> remaining = new ArrayList<>(stops);
         List<StopResponse> ordered = new ArrayList<>();
@@ -136,9 +149,7 @@ public class RouteOptimizationService {
                 int matrixIndex = stops.indexOf(candidate) + 1;
 
                 double timeToCandidate = durations[currentIndex][matrixIndex];
-                // Vi lägger till en LITEN straffavgift för avstånd till målet,
-                // men mycket mindre än förut (0.001) bara för att bryta lika-lägen.
-                double timeToFinish = durations[matrixIndex][endIndex] * 0.001;
+                double timeToFinish = durations[matrixIndex][endIndex] * END_WEIGHT;
 
                 double score = timeToCandidate + timeToFinish;
 
@@ -154,37 +165,23 @@ public class RouteOptimizationService {
         return ordered;
     }
 
-    /**
-     * 2-OPT OPTIMERING: Rätar ut "korsningar" och onödiga omvägar.
-     */
     private List<StopResponse> optimizeTwoOpt(List<StopResponse> route, double[][] durations, List<StopResponse> originalStops) {
         List<StopResponse> improvedRoute = new ArrayList<>(route);
         boolean improvement = true;
         int loopCount = 0;
 
-        // Vi kör loopen tills vi inte hittar några fler förbättringar
         while (improvement && loopCount < 50) {
             improvement = false;
             loopCount++;
-
-            // Gå igenom alla par av kanter (i och k)
             for (int i = 0; i < improvedRoute.size() - 1; i++) {
                 for (int k = i + 1; k < improvedRoute.size(); k++) {
-
-                    // Beräkna nuvarande avstånd
                     double currentDist = calculateSegmentCost(improvedRoute, durations, originalStops, i, k);
-
-                    // Skapa en ny rutt där vi vänder på segmentet mellan i och k
                     List<StopResponse> newRoute = twoOptSwap(improvedRoute, i, k);
-
-                    // Beräkna nytt avstånd
                     double newDist = calculateSegmentCost(newRoute, durations, originalStops, i, k);
 
-                    // Om det blev bättre, behåll ändringen!
                     if (newDist < currentDist) {
                         improvedRoute = newRoute;
                         improvement = true;
-                        // System.out.println("🔄 2-Opt förbättring hittad! (" + currentDist + " -> " + newDist + ")");
                     }
                 }
             }
@@ -192,53 +189,45 @@ public class RouteOptimizationService {
         return improvedRoute;
     }
 
-    // Hjälpmetod för att vända på en del av listan
     private List<StopResponse> twoOptSwap(List<StopResponse> route, int i, int k) {
         List<StopResponse> newRoute = new ArrayList<>();
-        // 1. Ta allt fram till i
         for (int c = 0; c <= i - 1; c++) newRoute.add(route.get(c));
-
-        // 2. Ta segmentet från i till k, men BAKLÄNGES
         for (int c = k; c >= i; c--) newRoute.add(route.get(c));
-
-        // 3. Ta resten
         for (int c = k + 1; c < route.size(); c++) newRoute.add(route.get(c));
-
         return newRoute;
     }
 
-    // Hjälpmetod för att räkna kostnad för en del av rutten
-    // Vi behöver originalStops för att hitta rätt index i duration-matrisen
     private double calculateSegmentCost(List<StopResponse> route, double[][] durations, List<StopResponse> originalStops, int i, int k) {
-        // Hitta Start-index (0) i matrisen
         int prevMatrixIndex = (i == 0) ? 0 : originalStops.indexOf(route.get(i - 1)) + 1;
-
         double cost = 0;
-
-        // Summera kostnaden för segmentet vi kollar på
         for (int c = i; c <= k; c++) {
             int currentMatrixIndex = originalStops.indexOf(route.get(c)) + 1;
             cost += durations[prevMatrixIndex][currentMatrixIndex];
             prevMatrixIndex = currentMatrixIndex;
         }
-
-        // Lägg till kostnaden till nästa punkt efter k (eller slutet)
         int nextMatrixIndex = (k + 1 < route.size())
                 ? originalStops.indexOf(route.get(k + 1)) + 1
-                : durations.length - 1; // Sista index i matrisen är End Address
-
+                : durations.length - 1;
         cost += durations[prevMatrixIndex][nextMatrixIndex];
-
         return cost;
     }
 
-    // --- SPARA & HÄMTA ---
     @Transactional
     public RouteEntity saveRoute(SaveRouteRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         UserEntity currentUser = userRepository.findByUsername(username).orElseThrow();
-        RouteEntity entity = new RouteEntity(request.name(), request.description(), request.startAddress(), request.endAddress(), request.geometry());
+
+        // HÄR SKICKAR VI MED totalDuration NU!
+        RouteEntity entity = new RouteEntity(
+                request.name(),
+                request.description(),
+                request.startAddress(),
+                request.endAddress(),
+                request.geometry(),
+                request.totalDuration()
+        );
         entity.setOwner(currentUser);
+
         request.stops().forEach(s -> entity.addStop(new RouteStopEntity(s.label(), s.address(), s.latitude(), s.longitude(), s.order())));
         return routeRepository.save(entity);
     }

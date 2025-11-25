@@ -9,6 +9,7 @@ public record SaveRouteRequest(
         String description,
         String startAddress,
         String endAddress,
-        String geometry, // <--- NYTT
+        String geometry,
+        Long totalDuration,
         @NotEmpty(message = "Stops cannot be empty") @Valid List<StopResponse> stops
 ) {}

@@ -5,5 +5,6 @@ import java.util.List;
 public record RouteOptimizationResponse(
         List<StopResponse> orderedStops,
         int totalStops,
-        String geometry
+        String geometry,
+        long totalDuration
 ) {}

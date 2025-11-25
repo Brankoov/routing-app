@@ -1,6 +1,8 @@
 package se.brankoov.routing.domain.route.entity;
-import se.brankoov.routing.domain.auth.UserEntity;
+
 import jakarta.persistence.*;
+import se.brankoov.routing.domain.auth.UserEntity;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,33 +15,35 @@ public class RouteEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;        // T.ex. "Måndag Glas4"
-
+    private String name;
     private String description;
+    private String startAddress;
+    private String endAddress;
 
+    @Column(columnDefinition = "TEXT")
+    private String geometry;
+
+    private Long totalDuration; // <--- NYTT FÄLT
 
     @ManyToOne
-    @JoinColumn(name = "user_id") // Skapar kolumnen user_id i routes-tabellen
+    @JoinColumn(name = "user_id")
     private UserEntity owner;
 
     private Instant createdAt = Instant.now();
-    private String startAddress;
-    private String endAddress;
 
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RouteStopEntity> stops = new ArrayList<>();
 
-    @Column(columnDefinition = "TEXT") // Gör plats för en lång sträng
-    private String geometry;
+    public RouteEntity() {}
 
-    public RouteEntity(String name, String description,String startAddress, String endAddress, String geometry) {
+    // UPPDATERAD KONSTRUKTOR (Nu med 6 argument)
+    public RouteEntity(String name, String description, String startAddress, String endAddress, String geometry, Long totalDuration) {
         this.name = name;
         this.description = description;
         this.startAddress = startAddress;
         this.endAddress = endAddress;
         this.geometry = geometry;
-    }
-    public RouteEntity() {
+        this.totalDuration = totalDuration;
     }
 
     public void addStop(RouteStopEntity stop) {
@@ -49,27 +53,20 @@ public class RouteEntity {
 
     // Getters & Setters
     public Long getId() { return id; }
-
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-
-    // Nya getters/setters för description
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-
-    public Instant getCreatedAt() { return createdAt; }
-    public List<RouteStopEntity> getStops() { return stops; }
-    public void setStops(List<RouteStopEntity> stops) { this.stops = stops; }
-
     public String getStartAddress() { return startAddress; }
     public void setStartAddress(String startAddress) { this.startAddress = startAddress; }
-
     public String getEndAddress() { return endAddress; }
     public void setEndAddress(String endAddress) { this.endAddress = endAddress; }
-
-    public UserEntity getOwner() { return owner; }
-    public void setOwner(UserEntity owner) { this.owner = owner; }
-
     public String getGeometry() { return geometry; }
     public void setGeometry(String geometry) { this.geometry = geometry; }
+    public Long getTotalDuration() { return totalDuration; }
+    public void setTotalDuration(Long totalDuration) { this.totalDuration = totalDuration; }
+    public UserEntity getOwner() { return owner; }
+    public void setOwner(UserEntity owner) { this.owner = owner; }
+    public Instant getCreatedAt() { return createdAt; }
+    public List<RouteStopEntity> getStops() { return stops; }
 }

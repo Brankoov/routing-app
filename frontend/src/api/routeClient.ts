@@ -14,6 +14,8 @@ export interface OrderedStop extends StopRequest {
 export interface RouteOptimizationResponse {
   orderedStops: OrderedStop[];
   totalStops: number;
+  geometry?: string;
+  totalDuration?: number; // Sekunder
 }
 
 export interface SaveRouteRequest {
@@ -22,6 +24,8 @@ export interface SaveRouteRequest {
   startAddress?: string;
   endAddress?: string;
   stops: OrderedStop[];
+  geometry?: string;
+  totalDuration?: number;
 }
 
 export interface SavedRoute {
@@ -31,6 +35,8 @@ export interface SavedRoute {
   startAddress?: string;
   endAddress?: string;
   createdAt: string;
+  geometry?: string;
+  totalDuration?: number;
   stops: {
     id: number;
     address: string;
@@ -39,35 +45,21 @@ export interface SavedRoute {
     orderIndex: number;
   }[];
 }
-export interface RouteOptimizationResponse {
-  orderedStops: OrderedStop[];
-  totalStops: number;
-  geometry?: string; // <--- NYTT
-}
 
-// Och här
-export interface SavedRoute {
-  id: number;
-  name: string;
-  // ... (description, start/end är kvar)
-  geometry?: string; // <--- NYTT
-  // ... (stops är kvar)
-}
-
-// Spara-requesten behöver också geometry
-export interface SaveRouteRequest {
-  // ... (name, desc, start, end är kvar)
-  geometry?: string; // <--- NYTT
-  stops: OrderedStop[];
-}
-
-// --- HJÄLPFUNKTION FÖR HEADERS (Magin händer här) ---
+// --- HJÄLPFUNKTIONER ---
 function getAuthHeaders() {
   const token = localStorage.getItem("jwt_token");
   return {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : '',
   };
+}
+
+export function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}min`;
+  return `${m}min`;
 }
 
 // --- API ANROP ---
@@ -91,7 +83,7 @@ export async function optimizeRoute(params: {
 
   const response = await fetch('http://localhost:8080/api/routes/optimize', {
     method: 'POST',
-    headers: getAuthHeaders(), // <--- ANVÄNDER NYA HEADERS
+    headers: getAuthHeaders(),
     body: JSON.stringify(body),
   });
 
@@ -105,7 +97,7 @@ export async function optimizeRoute(params: {
 export async function saveRoute(data: SaveRouteRequest): Promise<void> {
   const response = await fetch('http://localhost:8080/api/routes/save', {
     method: 'POST',
-    headers: getAuthHeaders(), // <--- HÄR
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -120,14 +112,11 @@ export async function fetchAllRoutes(): Promise<SavedRoute[]> {
     headers: getAuthHeaders(),
   });
 
-  // --- NYTT: Hantera trasig token ---
   if (response.status === 403) {
-    // Servern gillar inte vår token. Kasta den och ladda om!
     localStorage.removeItem("jwt_token");
     window.location.reload();
     throw new Error("Session expired");
   }
-  // ----------------------------------
 
   if (!response.ok) {
     throw new Error(`Failed to fetch routes. Status: ${response.status}`);
@@ -139,7 +128,7 @@ export async function fetchAllRoutes(): Promise<SavedRoute[]> {
 export async function deleteRoute(id: number): Promise<void> {
   const response = await fetch(`http://localhost:8080/api/routes/${id}`, {
     method: 'DELETE',
-    headers: getAuthHeaders(), // <--- OCH HÄR
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     throw new Error(`Failed to delete route. Status: ${response.status}`);
