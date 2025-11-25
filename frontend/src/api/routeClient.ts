@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "./config";
+
 // --- TYPER ---
 export interface StopRequest {
   id: string;
@@ -81,7 +83,7 @@ export async function optimizeRoute(params: {
     })),
   };
 
-  const response = await fetch('http://localhost:8080/api/routes/optimize', {
+  const response = await fetch(`${API_BASE_URL}/api/routes/optimize`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(body),

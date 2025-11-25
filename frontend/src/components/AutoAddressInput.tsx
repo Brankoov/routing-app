@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { API_BASE_URL } from "../api/config";
 
 export default function AutoAddressInput({
   label,
@@ -30,7 +31,7 @@ export default function AutoAddressInput({
 
     const fetchData = async () => {
       try {
-        const url = `http://localhost:8080/api/geocode/suggest?q=${encodeURIComponent(value)}`;
+        const url = `${API_BASE_URL}/api/geocode/suggest?q=${encodeURIComponent(value)}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();

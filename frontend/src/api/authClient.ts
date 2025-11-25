@@ -1,14 +1,14 @@
+import { API_BASE_URL } from "./config";
+
 export interface RegisterRequest {
   username: string;
   password: string;
 }
 
 export async function registerUser(data: RegisterRequest): Promise<string> {
-  const response = await fetch('http://localhost:8080/api/auth/register', {
+ const response = await fetch(`${API_BASE_URL}/api/auth/register`, { 
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
 
@@ -30,11 +30,9 @@ export interface LoginResponse {
 }
 
 export async function loginUser(data: LoginRequest): Promise<string> {
-  const response = await fetch('http://localhost:8080/api/auth/login', {
+  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
 
