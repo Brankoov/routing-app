@@ -1,6 +1,10 @@
 FROM gradle:8.5-jdk17 AS builder
 WORKDIR /app
 COPY . .
+
+# NYTT: Gör gradlew körbar!
+RUN chmod +x ./gradlew
+
 # Bygg appen och hoppa över tester för att spara tid
 RUN ./gradlew clean build -x test --no-daemon
 
