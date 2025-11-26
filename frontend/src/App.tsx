@@ -97,7 +97,7 @@ function App() {
             </button>
             
             <button className={`nav-item ${activeTab === 'drive' ? 'active' : ''}`} onClick={() => setActiveTab('drive')}>
-              🏎️ <span style={{fontSize:'0.6em', display:'block'}}>Kör</span> // Trigger deploy
+              🏎️ <span style={{fontSize:'0.6em', display:'block'}}>Kör</span> 
             </button>
             
             <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
