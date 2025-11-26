@@ -23,7 +23,8 @@ public class RouteEntity {
     @Column(columnDefinition = "TEXT")
     private String geometry;
 
-    private Long totalDuration; // <--- NYTT FÄLT
+    private Long totalDuration;
+    private Integer averageStopDuration;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -37,13 +38,14 @@ public class RouteEntity {
     public RouteEntity() {}
 
     // UPPDATERAD KONSTRUKTOR (Nu med 6 argument)
-    public RouteEntity(String name, String description, String startAddress, String endAddress, String geometry, Long totalDuration) {
+    public RouteEntity(String name, String description, String startAddress, String endAddress, String geometry, Long totalDuration, Integer averageStopDuration) {
         this.name = name;
         this.description = description;
         this.startAddress = startAddress;
         this.endAddress = endAddress;
         this.geometry = geometry;
         this.totalDuration = totalDuration;
+        this.averageStopDuration = averageStopDuration; // <--- NYTT
     }
 
     public void addStop(RouteStopEntity stop) {
@@ -69,4 +71,6 @@ public class RouteEntity {
     public void setOwner(UserEntity owner) { this.owner = owner; }
     public Instant getCreatedAt() { return createdAt; }
     public List<RouteStopEntity> getStops() { return stops; }
+    public Integer getAverageStopDuration() { return averageStopDuration; }
+    public void setAverageStopDuration(Integer averageStopDuration) { this.averageStopDuration = averageStopDuration; }
 }

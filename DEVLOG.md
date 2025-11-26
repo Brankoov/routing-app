@@ -223,4 +223,11 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - Localized Authentication Responses.
   Updated `AuthController` to return success and error messages in Swedish ("Användare registrerad!", "Användarnamnet är redan upptaget") to match the rest of the application UI language.
 - Moved the confirmation text "Rutt sparad" to the card below where the save button is.
-- 
+
+- Today I focused on the most important part for the end-user: The "Drive Mode".
+
+- I built a dedicated view (`DriveView`) where the driver can actually execute the route. Instead of just seeing a static list, they can now check off stops as they go. I added logic to calculate the remaining work day (driving time + work time) which updates in real-time.
+
+- I also spent a lot of time polishing the map experience. Now, when a stop is marked as done, the marker on the map turns gray/transparent so it's easy to see what's left. I also fixed a really annoying bug where the map kept zooming out every time a stop was checked off – now it stays put.
+
+- Finally, I improved the flow between Planning and Driving. You can now pause a drive to edit the route in the planner, and I replaced the ugly browser alerts with a custom confirmation modal when finishing a route.

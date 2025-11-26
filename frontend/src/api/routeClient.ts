@@ -28,6 +28,7 @@ export interface SaveRouteRequest {
   stops: OrderedStop[];
   geometry?: string;
   totalDuration?: number;
+  averageStopDuration?: number;
 }
 
 export interface SavedRoute {
@@ -39,6 +40,7 @@ export interface SavedRoute {
   createdAt: string;
   geometry?: string;
   totalDuration?: number;
+  averageStopDuration?: number;
   stops: {
     id: number;
     address: string;

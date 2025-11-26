@@ -215,20 +215,29 @@ public class RouteOptimizationService {
     @Transactional
     public RouteEntity saveRoute(SaveRouteRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        UserEntity currentUser = userRepository.findByUsername(username).orElseThrow();
+        UserEntity currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // HÄR SKICKAR VI MED totalDuration NU!
+        // HÄR SKER ANROPET. KOLLA NOGA ATT ORDNINGEN ÄR RÄTT:
         RouteEntity entity = new RouteEntity(
-                request.name(),
-                request.description(),
-                request.startAddress(),
-                request.endAddress(),
-                request.geometry(),
-                request.totalDuration()
+                request.name(),                 // 1. String
+                request.description(),          // 2. String
+                request.startAddress(),         // 3. String
+                request.endAddress(),           // 4. String
+                request.geometry(),             // 5. String
+                request.totalDuration(),        // 6. Long
+                request.averageStopDuration()   // 7. Integer <--- Denna måste matcha Request
         );
+
         entity.setOwner(currentUser);
 
-        request.stops().forEach(s -> entity.addStop(new RouteStopEntity(s.label(), s.address(), s.latitude(), s.longitude(), s.order())));
+        request.stops().forEach(s -> {
+            RouteStopEntity stopEntity = new RouteStopEntity(
+                    s.label(), s.address(), s.latitude(), s.longitude(), s.order()
+            );
+            entity.addStop(stopEntity);
+        });
+
         return routeRepository.save(entity);
     }
 

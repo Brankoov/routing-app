@@ -10,7 +10,6 @@ import AutoAddressInput from "./AutoAddressInput";
 import { DEMO_ROUTE } from "../data/demoRoute";
 import { formatDuration } from "../api/routeClient";
 
-// FIXAD: Google Maps-länk (Universal Link)
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
   longitude: number | null;
@@ -36,9 +35,10 @@ const MAX_STOPS = 48;
 
 type Props = {
   routeToLoad: SavedRoute | null;
+  onStartDrive: (route: SavedRoute) => void; // <--- NY PROP
 };
 
-export function RoutePlanner({ routeToLoad }: Props) {
+export function RoutePlanner({ routeToLoad, onStartDrive }: Props) { // <--- Ta emot den här
   const [startAddress, setStartAddress] = useState("");
   const [endAddress, setEndAddress] = useState("");
   const [stops, setStops] = useState<StopInput[]>([
@@ -51,31 +51,48 @@ export function RoutePlanner({ routeToLoad }: Props) {
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
   
-  // State för tid per stopp (Default 5 min)
   const [stopTime, setStopTime] = useState(5);
 
-  // Ladda in data om vi klickat "Redigera"
   useEffect(() => {
     if (routeToLoad) {
         setStartAddress(routeToLoad.startAddress || "");
         setEndAddress(routeToLoad.endAddress || "");
         setRouteName(routeToLoad.name + " (Kopia)");
 
+        // 1. Fyll i formuläret (Övre kortet)
         const formStops = [...routeToLoad.stops]
             .sort((a, b) => a.orderIndex - b.orderIndex)
             .map(s => ({
-                id: String(Date.now() + Math.random()),
+                id: String(Date.now() + Math.random()), // Nya IDn för att inte krocka
                 address: s.address
             }));
         
         setStops(formStops);
-        setResult(null);
+
+        // 2. Fyll i resultatet direkt! (Nedre kortet) <--- NYTT HÄR
+        // Vi återskapar ett "resultat-objekt" från den sparade datan
+        const reconstructedResult: RouteOptimizationResponse = {
+            orderedStops: routeToLoad.stops.map(s => ({
+                id: String(s.id),
+                label: `Stop ${s.orderIndex + 1}`,
+                address: s.address,
+                latitude: s.latitude,
+                longitude: s.longitude,
+                order: s.orderIndex
+            })).sort((a, b) => a.order - b.order),
+            totalStops: routeToLoad.stops.length,
+            geometry: routeToLoad.geometry,
+            totalDuration: routeToLoad.totalDuration
+        };
+
+        setResult(reconstructedResult); // Visa resultatet direkt!
+        // setResult(null); <--- DENNA TOG VI BORT
+
         setSuccessMsg(null);
         setState("idle");
     }
   }, [routeToLoad]);
 
-  // Funktion för Demo-knappen
   const loadDemoData = () => {
     setStartAddress(DEMO_ROUTE.start);
     setEndAddress(DEMO_ROUTE.end);
@@ -158,10 +175,10 @@ export function RoutePlanner({ routeToLoad }: Props) {
         startAddress: startAddress,
         endAddress: endAddress,
         geometry: result.geometry,
-        totalDuration: result.totalDuration
+        totalDuration: result.totalDuration,
+        averageStopDuration: stopTime
       });
 
-      // KORTARE TEXT HÄR:
       setSuccessMsg("Rutt sparad! ✅");
       setState("ok");
       setRouteName("");
@@ -176,7 +193,6 @@ export function RoutePlanner({ routeToLoad }: Props) {
     <section>
       <div className="card">
         
-        {/* --- SPINNER OVERLAY --- */}
         {state === "loading" && (
           <div className="loading-overlay">
             <div className="spinner"></div>
@@ -185,7 +201,6 @@ export function RoutePlanner({ routeToLoad }: Props) {
           </div>
         )}
 
-        {/* --- DEMO KNAPP --- */}
         <div style={{marginBottom: '1.5rem', textAlign: 'center'}}>
             <button 
                 type="button" 
@@ -306,8 +321,6 @@ export function RoutePlanner({ routeToLoad }: Props) {
         {state === "error" && error && (
           <p style={{ color: "red", marginTop: "1rem", textAlign: 'center' }}>⚠️ {error}</p>
         )}
-
-        {/* TOG BORT SUCCESS MSG HÄRIFRÅN */}
       </div>
 
       {result && (
@@ -343,6 +356,37 @@ export function RoutePlanner({ routeToLoad }: Props) {
             </div>
           </div>
 
+          {/* --- NY KNAPP: STARTA KÖRNING --- */}
+          <button
+            onClick={() => {
+                const tempRoute: any = {
+                    id: 0, 
+                    name: "Nuvarande körning",
+                    stops: result.orderedStops.map(s => ({...s, orderIndex: s.order})),
+                    geometry: result.geometry,
+                    startAddress: startAddress,
+                    endAddress: endAddress
+                };
+                onStartDrive(tempRoute);
+            }}
+            style={{
+                width: '100%', 
+                padding: '16px', 
+                background: '#2196f3', // Blå
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '12px',
+                fontWeight: 'bold',
+                fontSize: '1.1rem',
+                marginTop: '1rem',
+                marginBottom: '1.5rem',
+                boxShadow: '0 4px 8px rgba(33, 150, 243, 0.3)'
+            }}
+          >
+            🏎️ Starta Körning Nu
+          </button>
+          {/* -------------------------------- */}
+
           {/* SPARA-SEKTIONEN */}
           <div
             style={{
@@ -371,13 +415,11 @@ export function RoutePlanner({ routeToLoad }: Props) {
                 </button>
             </div>
 
-            {/* --- HÄR LIGGER SUCCESS-MEDDELANDET NU --- */}
             {successMsg && (
                 <p style={{ color: "green", marginTop: "0.5rem", textAlign: 'center', fontWeight: 'bold' }}>
                     {successMsg}
                 </p>
             )}
-            {/* ----------------------------------------- */}
           </div>
 
           <div style={{ textAlign: "left", marginBottom: "1rem" }}>

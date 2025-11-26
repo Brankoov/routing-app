@@ -1,41 +1,56 @@
 import { useEffect, useState } from 'react';
 import './App.css';
+import { HealthStatus } from './components/HealthStatus';
 import { RoutePlanner } from './components/RoutePlanner';
 import { SavedRoutesList } from './components/SavedRoutesList';
 import { RegisterForm } from './components/RegisterForm';
 import { LoginForm } from './components/LoginForm';
 import { CurrentUser } from './components/CurrentUser';
+import { DriveView } from './components/DriveView'; // <--- NY IMPORT
 import { type SavedRoute } from './api/routeClient';
 
-// Enkla ikoner (vi kan byta till SVG sen)
 const ICON_TRUCK = "🚛";
 const ICON_PIN = "📍";
+const ICON_WHEEL = "steering_wheel"; // Vi använder text eller emoji
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [routeToEdit, setRouteToEdit] = useState<SavedRoute | null>(null);
   
-  // NYTT: Håller koll på vilken flik vi är på
-  const [activeTab, setActiveTab] = useState<'plan' | 'history'>('plan');
+  // "drive" är den nya tabben
+  const [activeTab, setActiveTab] = useState<'plan' | 'history' | 'drive'>('plan'); 
 
   useEffect(() => {
     const token = localStorage.getItem("jwt_token");
     setIsLoggedIn(!!token);
+    
+    // Om vi har en aktiv rutt sparad, gå direkt till kör-läget!
+    if (localStorage.getItem("active_route")) {
+        setActiveTab('drive');
+    }
   }, []);
 
-  // Om man klickar "Redigera" i historiken, byt flik till planering
   const handleEditRoute = (route: SavedRoute) => {
     setRouteToEdit(route);
     setActiveTab('plan');
   };
 
+  // Funktion för att starta körning (anropas från Planner/History)
+  const handleStartDrive = (route: SavedRoute) => {
+      // Spara hela rutten i LS
+      localStorage.setItem("active_route", JSON.stringify(route));
+      // Nollställ gamla framsteg
+      localStorage.removeItem("active_route_progress");
+      
+      setActiveTab('drive');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="app-container">
       
-      {/* Header-område (kan stylas snyggare sen) */}
       {isLoggedIn && <div style={{padding: '10px'}}><CurrentUser /></div>}
 
-      {/* --- LOGIN FLOW --- */}
       {!isLoggedIn ? (
         <div style={{ padding: '2rem', paddingTop: '4rem' }}>
           <h1 style={{marginBottom: '2rem'}}>Välkommen</h1>
@@ -46,40 +61,47 @@ function App() {
           </div>
         </div>
       ) : (
-        /* --- HUVUD-APPEN --- */
-        <div style={{ padding: '1rem', paddingBottom: '80px' }}>
+        <div style={{ padding: activeTab === 'drive' ? '0' : '1rem', paddingBottom: '80px' }}>
           
-          {/* VY 1: PLANERA (Lastbilen) */}
+          {/* VY 1: PLANERA */}
           {activeTab === 'plan' && (
             <div>
               <h2 style={{fontSize: '1.5rem', marginBottom: '1rem'}}>Planera rutt</h2>
-              {/* RoutePlanner sköter "Address 1...", "Välj bil" osv */}
-              <RoutePlanner routeToLoad={routeToEdit} />
+              <RoutePlanner 
+                routeToLoad={routeToEdit} 
+                onStartDrive={handleStartDrive} // <--- Skicka ner funktionen
+              />
             </div>
           )}
 
-          {/* VY 2: HISTORIK (Kartnålen) */}
+          {/* VY 2: HISTORIK */}
           {activeTab === 'history' && (
             <div>
               <h2 style={{fontSize: '1.5rem', marginBottom: '1rem'}}>Historik</h2>
-              <SavedRoutesList onEdit={handleEditRoute} />
+              <SavedRoutesList 
+                onEdit={handleEditRoute} 
+                onStartDrive={handleStartDrive} // <--- Skicka ner funktionen
+              />
             </div>
           )}
 
-          {/* --- BOTTOM NAVIGATION BAR --- */}
+          {/* VY 3: KÖR-LÄGE (NY) */}
+          {activeTab === 'drive' && (
+             <DriveView onEdit={handleEditRoute} />
+          )}
+
+          {/* MENY */}
           <nav className="bottom-nav">
-            <button 
-              className={`nav-item ${activeTab === 'plan' ? 'active' : ''}`}
-              onClick={() => setActiveTab('plan')}
-            >
-              {ICON_TRUCK}
+            <button className={`nav-item ${activeTab === 'plan' ? 'active' : ''}`} onClick={() => setActiveTab('plan')}>
+              {ICON_TRUCK} <span style={{fontSize:'0.6em', display:'block'}}>Planera</span>
             </button>
             
-            <button 
-              className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
-              onClick={() => setActiveTab('history')}
-            >
-              {ICON_PIN}
+            <button className={`nav-item ${activeTab === 'drive' ? 'active' : ''}`} onClick={() => setActiveTab('drive')}>
+              🏎️ <span style={{fontSize:'0.6em', display:'block'}}>Kör</span>
+            </button>
+            
+            <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+              {ICON_PIN} <span style={{fontSize:'0.6em', display:'block'}}>Historik</span>
             </button>
           </nav>
 

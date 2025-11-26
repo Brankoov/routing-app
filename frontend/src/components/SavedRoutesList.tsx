@@ -2,13 +2,12 @@ import { useEffect, useState } from "react";
 import { fetchAllRoutes, deleteRoute, type SavedRoute } from "../api/routeClient";
 import RouteMap from "./RouteMap";
 
-// FIXAD: Google Maps-länk som fungerar bra på både mobil och desktop
+// FIXAD: Google Maps-länk (Universal Link)
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
   longitude: number | null;
   address: string;
 }) {
-  // Använder /13 versionen som vi vet fungerar
   const baseUrl = "https://www.google.com/maps/search/?api=1&query=";
 
   if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
@@ -19,17 +18,19 @@ function buildGoogleMapsUrl(stop: {
   return `${baseUrl}${q}`;
 }
 
+// UPPDATERADE PROPS
 type Props = {
   onEdit: (route: SavedRoute) => void;
+  onStartDrive: (route: SavedRoute) => void; // <--- NY PROP
 };
 
-export function SavedRoutesList({ onEdit }: Props) {
+export function SavedRoutesList({ onEdit, onStartDrive }: Props) { // <--- Ta emot den här
   const [routes, setRoutes] = useState<SavedRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  // NYTT: Håller koll på vilka stopp-IDn som är klara
+  // State för avbockade stopp i historiken (endast visuellt här)
   const [completedStops, setCompletedStops] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -72,14 +73,14 @@ export function SavedRoutesList({ onEdit }: Props) {
     onEdit(route);
   }
 
-  // NYTT: Funktion för att toggla (bocka av/på)
+  // Funktion för att toggla (bocka av/på)
   const toggleStopCompletion = (stopId: number) => {
     setCompletedStops(prev => {
       const newSet = new Set(prev);
       if (newSet.has(stopId)) {
-        newSet.delete(stopId); // Ångra (ta bort kryss)
+        newSet.delete(stopId);
       } else {
-        newSet.add(stopId); // Kryssa i
+        newSet.add(stopId);
       }
       return newSet;
     });
@@ -120,6 +121,19 @@ export function SavedRoutesList({ onEdit }: Props) {
                   </div>
                   
                   <div style={{display: 'flex', gap: '0.5rem'}}>
+                    {/* --- NY KNAPP: STARTA KÖRNING --- */}
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onStartDrive(route);
+                        }}
+                        style={{ background: "#2196f3", color: "white", padding: "8px", borderRadius: "50%", minWidth: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Kör denna rutt"
+                    >
+                        🏎️
+                    </button>
+                    {/* -------------------------------- */}
+
                     <button 
                       onClick={(e) => handleEditClick(route, e)}
                       style={{ background: "#e0f2f1", color: "#00695c", padding: "8px", borderRadius: "50%", minWidth: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -138,11 +152,13 @@ export function SavedRoutesList({ onEdit }: Props) {
                   </div>
                 </div>
 
+                {/* Start och Slut */}
                 <div style={{ marginTop: '0.75rem', fontSize: '0.9em', color: '#555', background: '#f9f9f9', padding: '8px', borderRadius: '8px' }}>
                     {route.startAddress && <div style={{marginBottom: '4px'}}>🏁 <strong>Start:</strong> {route.startAddress}</div>}
                     {route.endAddress && <div>🏁 <strong>Slut:</strong> {route.endAddress}</div>}
                 </div>
 
+                {/* EXPANDERAD DEL */}
                 {isExpanded && (
                   <div style={{ marginTop: "1rem", borderTop: "1px solid #eee", paddingTop: "1rem", cursor: "default" }} onClick={e => e.stopPropagation()}>
                     
@@ -150,42 +166,32 @@ export function SavedRoutesList({ onEdit }: Props) {
                     
                     <ul style={{ paddingLeft: "0", listStyle: 'none', marginBottom: '1.5rem' }}>
                       {route.stops.map((stop) => {
-                        const isCompleted = completedStops.has(stop.id); // Kolla om stoppet är klart
+                        const isCompleted = completedStops.has(stop.id);
 
                         return (
                           <li key={stop.id} style={{
                               marginBottom: '0.75rem', 
                               padding: '12px', 
-                              // Byt färg om klart
                               background: isCompleted ? '#f0f0f0' : '#fff', 
                               border: isCompleted ? '1px solid #eee' : '1px solid #eee', 
                               borderRadius: '8px',
                               display: 'flex',
                               justifyContent: 'space-between',
                               alignItems: 'center',
-                              // Gör hela raden lite genomskinlig om klar
                               opacity: isCompleted ? 0.6 : 1,
                               transition: 'all 0.2s'
                           }}>
                             
-                            {/* Vänster sida: Checkbox + Text */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
                               
-                              {/* STOR CHECKBOX / KNAPP */}
                               <div 
                                 onClick={() => toggleStopCompletion(stop.id)}
                                 style={{
-                                  minWidth: '28px',
-                                  height: '28px',
-                                  borderRadius: '50%',
+                                  minWidth: '28px', height: '28px', borderRadius: '50%',
                                   border: isCompleted ? '2px solid #4caf50' : '2px solid #ccc',
                                   background: isCompleted ? '#4caf50' : 'transparent',
-                                  color: 'white',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  cursor: 'pointer',
-                                  fontSize: '1.1rem'
+                                  color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  cursor: 'pointer', fontSize: '1.1rem'
                                 }}
                               >
                                 {isCompleted && '✓'}
@@ -194,9 +200,7 @@ export function SavedRoutesList({ onEdit }: Props) {
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <span style={{
                                     textDecoration: isCompleted ? 'line-through' : 'none',
-                                    fontWeight: '500',
-                                    color: isCompleted ? '#888' : '#333',
-                                    fontSize: '0.95em'
+                                    fontWeight: '500', color: isCompleted ? '#888' : '#333', fontSize: '0.95em'
                                 }}>
                                   {stop.address}
                                 </span>
@@ -206,17 +210,13 @@ export function SavedRoutesList({ onEdit }: Props) {
                               </div>
                             </div>
                             
-                            {/* Höger sida: Google Maps länk */}
                             <a
                               href={buildGoogleMapsUrl(stop)}
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{ 
-                                  fontSize: "1.4rem",
-                                  textDecoration: 'none',
-                                  padding: '8px',
-                                  filter: isCompleted ? 'grayscale(100%)' : 'none',
-                                  opacity: isCompleted ? 0.5 : 1
+                                  fontSize: "1.4rem", textDecoration: 'none', padding: '8px',
+                                  filter: isCompleted ? 'grayscale(100%)' : 'none', opacity: isCompleted ? 0.5 : 1
                               }}
                               title="Navigera med Google Maps"
                             >

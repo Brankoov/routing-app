@@ -3,15 +3,14 @@ import {
   MapContainer,
   TileLayer,
   Polyline,
-  Marker, // <--- BYTTE CircleMarker mot Marker
+  Marker,
   Popup,
   useMap
 } from 'react-leaflet';
-import L from 'leaflet'; // <--- VIKTIG IMPORT
+import L from 'leaflet';
 import type { OrderedStop } from '../api/routeClient';
 import 'leaflet/dist/leaflet.css';
 
-// Fix för Leaflets standard-ikoner som ibland strular i React
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
@@ -23,7 +22,6 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// --- AVKODNING AV POLYLINE (Samma som förut) ---
 function decodePolyline(str: string, precision: number = 5): [number, number][] {
   let index = 0,
       lat = 0,
@@ -67,24 +65,54 @@ function decodePolyline(str: string, precision: number = 5): [number, number][] 
   return coordinates;
 }
 
-function MapUpdater({ center }: { center: [number, number] }) {
+function MapUpdater({ center, trigger }: { center: [number, number], trigger?: string }) {
   const map = useMap();
+  
   useEffect(() => {
+    // Nu körs detta BARA om "trigger" (geometrin) ändras.
+    // Inte varje gång komponenten ritas om.
     map.setView(center, map.getZoom());
-  }, [center, map]);
+  }, [trigger]); // <--- HÄR ÄR MAGIN
+  
   return null;
 }
 
-// --- SKAPA EN NUMRERAD IKON ---
-function createNumberedIcon(label: string | number) {
-  // Om det är S (Start) eller M (Mål), byt färg!
-  let bgColor = '#333';
-  if (label === 'S') bgColor = '#2e7d32'; // Grön
-  if (label === 'M') bgColor = '#c62828'; // Röd
+// --- UPPDATERAD IKON-FUNKTION ---
+function createNumberedIcon(label: string | number, isCompleted: boolean = false) {
+  // Standardfärger
+  let bgColor = '#333'; // Svart
+  let opacity = '1';
+
+  // Om klar -> Grå och lite genomskinlig
+  if (isCompleted) {
+    bgColor = '#ccc';
+    opacity = '0.6';
+  } 
+  // Om inte klar, kolla om det är Start/Mål
+  else if (label === 'S') {
+    bgColor = '#2e7d32'; // Grön
+  } else if (label === 'M') {
+    bgColor = '#c62828'; // Röd
+  }
 
   return L.divIcon({
-    className: 'custom-marker-icon',
-    html: `<span style="background-color: ${bgColor}; width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center;">${label}</span>`,
+    className: 'custom-marker-icon', 
+    // Vi injicerar stilen direkt här
+    html: `<span style="
+      background-color: ${bgColor}; 
+      opacity: ${opacity};
+      width: 100%; 
+      height: 100%; 
+      border-radius: 50%; 
+      border: 2px solid white; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+    ">${label}</span>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
     popupAnchor: [0, -15]
@@ -96,9 +124,10 @@ type Props = {
   endAddress: string;
   stops: OrderedStop[];
   geometry?: string;
+  completedStops?: Set<number>; // <--- NY PROP: Lista på klara IDn
 };
 
-export default function RouteMap({ startAddress, endAddress, stops, geometry }: Props) {
+export default function RouteMap({ startAddress, endAddress, stops, geometry, completedStops }: Props) {
   const routePath: [number, number][] = geometry 
     ? decodePolyline(geometry)
     : stops
@@ -108,7 +137,6 @@ export default function RouteMap({ startAddress, endAddress, stops, geometry }: 
   const defaultCenter: [number, number] = [59.334591, 18.06324];
   const center: [number, number] = routePath.length > 0 ? routePath[0] : defaultCenter;
 
-  // Hämta start- och slutkoordinater från väg-linjen
   const startCoords = routePath.length > 0 ? routePath[0] : null;
   const endCoords = routePath.length > 0 ? routePath[routePath.length - 1] : null;
 
@@ -121,37 +149,40 @@ export default function RouteMap({ startAddress, endAddress, stops, geometry }: 
             attribution='&copy; OpenStreetMap & CARTO'
           />
           
-          <MapUpdater center={center} />
+          {/* Skicka med geometry som trigger */}
+          <MapUpdater center={center} trigger={geometry} />
 
-          {/* Vägen */}
           {routePath.length > 1 && <Polyline positions={routePath} color="#646cff" weight={5} opacity={0.8} />}
 
-          {/* START-MARKÖR (Grön) */}
           {startCoords && (
-            <Marker position={startCoords} icon={createNumberedIcon('S')}> {/* 'S' för Start */}
+            <Marker position={startCoords} icon={createNumberedIcon('S')}>
                <Popup><strong>Start:</strong> {startAddress}</Popup>
             </Marker>
           )}
 
-          {/* STOPP-MARKÖRER (Siffror) */}
-          {stops.map((s) => (
-            s.latitude && s.longitude && (
+          {stops.map((s) => {
+             // Kolla om stoppet är klart
+             // Vi konverterar ID till Number för säkerhets skull eftersom Set<number> används
+             const isDone = completedStops ? completedStops.has(Number(s.id)) : false;
+
+             return s.latitude && s.longitude && (
               <Marker
                 key={s.id}
                 position={[s.latitude, s.longitude]}
-                icon={createNumberedIcon(s.order + 1)}
+                // Skicka med isDone till ikonen
+                icon={createNumberedIcon(s.order + 1, isDone)}
+                zIndexOffset={isDone ? -100 : 100} // Lägg klara stopp bakom aktiva
               >
                 <Popup>
-                  <strong>#{s.order + 1}</strong><br/>
+                  <strong>#{s.order + 1}</strong> {isDone ? "(Klar)" : ""}<br/>
                   {s.address}
                 </Popup>
               </Marker>
-            )
-          ))}
+            );
+          })}
 
-          {/* SLUT-MARKÖR (Röd/Mål) */}
           {endCoords && (
-            <Marker position={endCoords} icon={createNumberedIcon('M')}> {/* 'M' för Mål */}
+            <Marker position={endCoords} icon={createNumberedIcon('M')}>
                <Popup><strong>Mål:</strong> {endAddress}</Popup>
             </Marker>
           )}
