@@ -35,7 +35,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         if (userRepository.existsByUsername(request.username())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Username already exists"));
+            return ResponseEntity.badRequest().body(Map.of("error", "Användarnamnet är upptaget"));
         }
 
         // 1. Skapa användare
@@ -46,7 +46,7 @@ public class AuthController {
 
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of("message", "User registered successfully"));
+        return ResponseEntity.ok(Map.of("message", "Användare registrerad!"));
     }
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {

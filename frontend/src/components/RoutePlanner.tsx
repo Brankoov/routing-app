@@ -10,6 +10,7 @@ import AutoAddressInput from "./AutoAddressInput";
 import { DEMO_ROUTE } from "../data/demoRoute";
 import { formatDuration } from "../api/routeClient";
 
+// FIXAD: Google Maps-länk (Universal Link)
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
   longitude: number | null;
@@ -49,10 +50,11 @@ export function RoutePlanner({ routeToLoad }: Props) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
-
-  // NYTT: State för tid per stopp (Default 5 min)
+  
+  // State för tid per stopp (Default 5 min)
   const [stopTime, setStopTime] = useState(5);
 
+  // Ladda in data om vi klickat "Redigera"
   useEffect(() => {
     if (routeToLoad) {
         setStartAddress(routeToLoad.startAddress || "");
@@ -73,6 +75,7 @@ export function RoutePlanner({ routeToLoad }: Props) {
     }
   }, [routeToLoad]);
 
+  // Funktion för Demo-knappen
   const loadDemoData = () => {
     setStartAddress(DEMO_ROUTE.start);
     setEndAddress(DEMO_ROUTE.end);
@@ -155,10 +158,11 @@ export function RoutePlanner({ routeToLoad }: Props) {
         startAddress: startAddress,
         endAddress: endAddress,
         geometry: result.geometry,
-        totalDuration: result.totalDuration // <--- NYTT: Skicka med tiden till DB
+        totalDuration: result.totalDuration
       });
 
-      setSuccessMsg("Rutt sparad i databasen! ✅");
+      // KORTARE TEXT HÄR:
+      setSuccessMsg("Rutt sparad! ✅");
       setState("ok");
       setRouteName("");
     } catch (err) {
@@ -172,6 +176,7 @@ export function RoutePlanner({ routeToLoad }: Props) {
     <section>
       <div className="card">
         
+        {/* --- SPINNER OVERLAY --- */}
         {state === "loading" && (
           <div className="loading-overlay">
             <div className="spinner"></div>
@@ -180,6 +185,7 @@ export function RoutePlanner({ routeToLoad }: Props) {
           </div>
         )}
 
+        {/* --- DEMO KNAPP --- */}
         <div style={{marginBottom: '1.5rem', textAlign: 'center'}}>
             <button 
                 type="button" 
@@ -301,11 +307,7 @@ export function RoutePlanner({ routeToLoad }: Props) {
           <p style={{ color: "red", marginTop: "1rem", textAlign: 'center' }}>⚠️ {error}</p>
         )}
 
-        {successMsg && (
-          <p style={{ color: "green", marginTop: "1rem", textAlign: 'center', fontWeight: 'bold' }}>
-            {successMsg}
-          </p>
-        )}
+        {/* TOG BORT SUCCESS MSG HÄRIFRÅN */}
       </div>
 
       {result && (
@@ -313,7 +315,7 @@ export function RoutePlanner({ routeToLoad }: Props) {
           <h3 style={{marginTop: 0}}>✅ Optimerat!</h3>
           <p style={{color: '#666'}}>Totalt antal stopp: {result.totalStops}</p>
 
-          {/* --- NY TID-KALKYLATOR --- */}
+          {/* --- TID-KALKYLATOR --- */}
           <div style={{background: '#e3f2fd', padding: '1rem', borderRadius: '12px', marginBottom: '1rem', border: '1px solid #bbdefb'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
                 <span style={{color: '#333'}}>🚗 Ren körtid:</span>
@@ -340,8 +342,8 @@ export function RoutePlanner({ routeToLoad }: Props) {
                 </span>
             </div>
           </div>
-          {/* ------------------------- */}
 
+          {/* SPARA-SEKTIONEN */}
           <div
             style={{
               background: "#f9f9f9",
@@ -368,6 +370,14 @@ export function RoutePlanner({ routeToLoad }: Props) {
                 {state === "saving" ? "..." : "Spara"}
                 </button>
             </div>
+
+            {/* --- HÄR LIGGER SUCCESS-MEDDELANDET NU --- */}
+            {successMsg && (
+                <p style={{ color: "green", marginTop: "0.5rem", textAlign: 'center', fontWeight: 'bold' }}>
+                    {successMsg}
+                </p>
+            )}
+            {/* ----------------------------------------- */}
           </div>
 
           <div style={{ textAlign: "left", marginBottom: "1rem" }}>

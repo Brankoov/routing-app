@@ -204,4 +204,23 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - Updated the User Interface (UI).
   The Route Planner and Saved Routes list now show "Driving Time".
   Added a feature where the user can input "Time per stop" (e.g., 5 minutes) to automatically calculate the total work day duration.
+
+## Hosting 2025-25-11
+- Today was the big deployment day. I finally took the step from running everything on localhost to having a live hosted application.
+
+- I started by setting up the database. I chose Supabase for this because their free tier is really generous and doesn't delete the database after 30 days like Render does. It felt like a safer choice for the project since I need it to stay online for a while.
+
+- For the backend, I went with Render using Docker, but I ran into some annoying issues right away. My local Windows machine didn't care that I named the file `DockerFile`, but Render's Linux environment refused to find it until I renamed it to `Dockerfile` (lowercase). I also had to manually add execution permissions (`chmod +x`) to the gradlew script to get the build running.
+
+- Connecting the Spring Boot backend to Supabase wasn't smooth either. The app kept crashing with a weird error saying `prepared statement "S_2" does not exist`. It turns out Supabase's transaction pooler doesn't support prepared statements by default, so I had to disable that in the JDBC connection string (`prepareThreshold=0`) to make it work.
+
+- Finally, I deployed the React frontend to Vercel. It loaded fine, but failed to talk to the backend because of CORS issues. I had to go back into my Java code and whitelist the Vercel domain in the SecurityConfig. I also realized I had hardcoded `localhost:8080` in my API client, so I had to refactor that to use a dynamic environment variable that switches automatically between dev and prod.
+
+- It was a bit of a hassle with all the configurations, but now the whole chain—Frontend, Backend, and Database—is live and working together.
+
+## 2025-26-11
+
+- Localized Authentication Responses.
+  Updated `AuthController` to return success and error messages in Swedish ("Användare registrerad!", "Användarnamnet är redan upptaget") to match the rest of the application UI language.
+- Moved the confirmation text "Rutt sparad" to the card below where the save button is.
 - 
