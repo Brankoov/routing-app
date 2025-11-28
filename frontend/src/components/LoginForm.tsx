@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { loginUser } from "../api/authClient";
 
-export function LoginForm() {
+// NYTT: Ta emot en funktion för att öppna registrering
+type Props = {
+  onOpenRegister: () => void;
+};
+
+export function LoginForm({ onOpenRegister }: Props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   
@@ -16,7 +21,6 @@ export function LoginForm() {
     try {
       const jwt = await loginUser({ username, password });
       
-      // Sparar token och laddar om - precis som förut!
       localStorage.setItem("jwt_token", jwt);
       setToken(jwt);
       setTimeout(() => window.location.reload(), 1000);
@@ -27,41 +31,61 @@ export function LoginForm() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: "300px", margin: "0 auto", textAlign: "left" }}>
-      <h3 style={{marginTop: 0}}>🔑 Logga in</h3>
-      <form onSubmit={handleLogin} style={{ display: "grid", gap: "1rem" }}>
-        <label>
-          Användarnamn
+    <div className="card" style={{ maxWidth: "350px", margin: "0 auto", textAlign: "left" }}>
+      <h3 style={{marginTop: 0, marginBottom: '1.5rem', textAlign: 'center'}}>Välkommen tillbaka 👋</h3>
+      
+      <form onSubmit={handleLogin} style={{ display: "grid", gap: "1.2rem" }}>
+        <div>
+          <label style={{marginLeft: '4px'}}>Användarnamn</label>
           <input 
             type="text" 
             value={username} 
             onChange={e => setUsername(e.target.value)} 
-            style={{ marginTop: "0.25rem" }}
+            placeholder="Ditt användarnamn"
           />
-        </label>
+        </div>
         
-        <label>
-          Lösenord
+        <div>
+          <label style={{marginLeft: '4px'}}>Lösenord</label>
           <input 
             type="password" 
             value={password} 
             onChange={e => setPassword(e.target.value)} 
-            style={{ marginTop: "0.25rem" }}
+            placeholder="••••••••"
           />
-        </label>
+        </div>
 
-        <button type="submit" className="primary-btn">
+        <button type="submit" className="primary-btn" style={{marginTop: '0.5rem'}}>
           Logga in
         </button>
       </form>
 
-      {error && <p style={{ color: "red", marginTop: "1rem" }}>{error}</p>}
+      {error && <p style={{ color: "red", marginTop: "1rem", textAlign: 'center' }}>{error}</p>}
 
       {token && (
-        <div style={{ marginTop: "1rem" }}>
+        <div style={{ marginTop: "1rem", textAlign: 'center' }}>
           <p style={{ color: "green", fontWeight: "bold" }}>Inloggad! ✅</p>
         </div>
       )}
+
+      {/* --- NYTT: LÄNK TILL REGISTRERING --- */}
+      <div style={{marginTop: '1.5rem', textAlign: 'center', borderTop: '1px solid #eee', paddingTop: '1rem'}}>
+        <span style={{color: '#666', fontSize: '0.9rem'}}>Har du inget konto? </span>
+        <button 
+            onClick={onOpenRegister}
+            style={{
+                background: 'none', 
+                border: 'none', 
+                color: '#646cff', 
+                fontWeight: 'bold', 
+                padding: '0 4px',
+                cursor: 'pointer',
+                fontSize: '0.9rem'
+            }}
+        >
+            Skapa ett här!
+        </button>
+      </div>
     </div>
   );
 }
