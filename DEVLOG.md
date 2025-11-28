@@ -231,3 +231,12 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 - I also spent a lot of time polishing the map experience. Now, when a stop is marked as done, the marker on the map turns gray/transparent so it's easy to see what's left. I also fixed a really annoying bug where the map kept zooming out every time a stop was checked off – now it stays put.
 
 - Finally, I improved the flow between Planning and Driving. You can now pause a drive to edit the route in the planner, and I replaced the ugly browser alerts with a custom confirmation modal when finishing a route.
+
+## 2025-28-11
+Today I faced a major hurdle when deploying the backend to Render. The application kept crashing with a "FATAL: Max client connections reached" error. This happened because my Spring Boot application was trying to open too many simultaneous connections to the Supabase database, exceeding the limits of the free tier, especially during deployments when two versions of the app run briefly at the same time.
+
+I initially tried to solve this by switching to Supabase's Transaction Pooler on port 6543, which is designed to handle many connections. However, this introduced a new problem where Hibernate failed with "prepared statement S_2 does not exist" errors, as the transaction pooler doesn't fully support the way Hibernate caches queries.
+
+After several failed attempts to configure Hibernate to work with the transaction pooler, I decided to revert to the standard Session Mode on port 5432. The breakthrough solution was to strictly limit the application's resource usage. I configured the HikariCP connection pool to only allow a maximum of 5 active connections (instead of the default 10) and set aggressive timeouts to release idle connections quickly.
+
+Finally, I encountered a "java.net.UnknownHostException" which turned out to be caused by special characters in my database password breaking the JDBC URL string. I fixed this by refactoring the configuration to use separate environment variables for the username and password instead of a single long connection string. The system is now stable and handles deployments without hitting connection limits.
