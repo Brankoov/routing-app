@@ -232,7 +232,7 @@ The result is a smarter, more realistic ordering without needing full pathfindin
 
 - Finally, I improved the flow between Planning and Driving. You can now pause a drive to edit the route in the planner, and I replaced the ugly browser alerts with a custom confirmation modal when finishing a route.
 
-## 2025-28-11
+## 2025-03-12
 Today I faced a major hurdle when deploying the backend to Render. The application kept crashing with a "FATAL: Max client connections reached" error. This happened because my Spring Boot application was trying to open too many simultaneous connections to the Supabase database, exceeding the limits of the free tier, especially during deployments when two versions of the app run briefly at the same time.
 
 I initially tried to solve this by switching to Supabase's Transaction Pooler on port 6543, which is designed to handle many connections. However, this introduced a new problem where Hibernate failed with "prepared statement S_2 does not exist" errors, as the transaction pooler doesn't fully support the way Hibernate caches queries.
@@ -246,3 +246,21 @@ The application now displays a single, clean "Login" card by default, reducing v
 Implemented a modal-based registration form triggered by a "Create account" link within the login view.
 Added a close button to the registration modal for better navigation control.
 Refactored `App.tsx`, `LoginForm.tsx`, and `RegisterForm.tsx` to support this new state-driven UI flow.
+
+2025-11-29 – The "Sliding" Login UI & CSS Battles
+
+Today I decided to overhaul the first impression of the app. I wanted a modern "Double Slider" design where the login and register forms slide side-to-side.
+
+The Goal: Create a unified AuthPage that looks professional on desktop but remains functional on mobile, replacing the old stacked cards.
+
+Trials & Errors (The Struggle): It wasn't as easy as copy-pasting the design. I ran into several UI issues:
+
+The "Long Text" Problem: The design looked great in English, but Swedish words like "personuppgifter" broke the layout. I had to spend time tweaking the container width and padding to get the text centered.
+
+Mobile Layout: The sliding animation didn't work well on vertical mobile screens. I had to write custom Media Queries to disable the slider and use simple toggle links for smaller screens.
+
+The "Ghost Scroll": The most annoying bug was that the background page kept scrolling behind the fixed login card. CSS fixes like position: fixed weren't enough.
+
+The Solution: I solved the scrolling issue by using a React useEffect hook to programmatically lock the document body scroll when the component mounts. I also cleaned up the UI by removing non-functional links like "Forgot Password" and adding proper cursor feedback.
+
+The result is a rock-solid, responsive authentication screen.
