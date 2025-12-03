@@ -28,12 +28,20 @@ export function AuthPage() {
   // Hantera Login
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    setLoading(true); // <--- NYTT: Starta animationen!
+    setMsg(null);     // Rensa gamla felmeddelanden
+
     try {
+      // Vi lägger in en liten konstgjord fördröjning på 800ms 
+      // så man hinner se den coola lastbilen även om servern är supersnabb ;)
+      await new Promise(r => setTimeout(r, 800));
+
       const jwt = await loginUser({ username: loginUserStr, password: loginPass });
       localStorage.setItem("jwt_token", jwt);
       window.location.reload();
     } catch (err) {
       setMsg({ text: "Fel inloggning!", isError: true });
+      setLoading(false); // <--- NYTT: Stoppa animationen vid fel
     }
   }
 
@@ -41,10 +49,12 @@ export function AuthPage() {
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    setMsg(null);
+    
     try {
       await registerUser({ username: regUser, password: regPass });
       setMsg({ text: "Konto skapat! Logga in nu.", isError: false });
-      // Byt tillbaka till login-sidan automatiskt efter succé
+      
       setTimeout(() => {
           setIsRegisterActive(false);
           setMsg(null);
@@ -60,6 +70,17 @@ export function AuthPage() {
     <div className="auth-body">
       <div className={`container ${isRegisterActive ? "right-panel-active" : ""}`} id="container">
         
+        {/* --- HÄR ÄR DEN NYA LADDNINGS-RUTAN --- */}
+        {loading && (
+            <div className="loading-overlay">
+                <div className="truck-anim">🚛💨</div>
+                <div className="loading-text">
+                    {isRegisterActive ? "Skapar konto..." : "Loggar in..."}
+                </div>
+            </div>
+        )}
+        {/* -------------------------------------- */}
+
         {/* --- REGISTRERINGS-FORMULÄR --- */}
         <div className="form-container sign-up-container">
           <form onSubmit={handleRegister}>
@@ -71,7 +92,6 @@ export function AuthPage() {
             <input type="text" placeholder="Användarnamn" value={regUser} onChange={e => setRegUser(e.target.value)} required />
             <input type="password" placeholder="Lösenord" value={regPass} onChange={e => setRegPass(e.target.value)} required />
             
-            {/* Länk med pekfinger-cursor */}
             <p 
                 className="mobile-only-link" 
                 onClick={() => setIsRegisterActive(false)}
@@ -80,7 +100,7 @@ export function AuthPage() {
                 Har du redan ett konto? Logga in
             </p>
 
-            <button type="submit" disabled={loading}>{loading ? "Skapar..." : "Registrera"}</button>
+            <button type="submit" disabled={loading}>{loading ? "Laddar..." : "Registrera"}</button>
             {msg && <p className={msg.isError ? "error" : "success"}>{msg.text}</p>}
           </form>
         </div>
@@ -96,9 +116,6 @@ export function AuthPage() {
             <input type="text" placeholder="Användarnamn" value={loginUserStr} onChange={e => setLoginUserStr(e.target.value)} required />
             <input type="password" placeholder="Lösenord" value={loginPass} onChange={e => setLoginPass(e.target.value)} required />
             
-            {/* "Glömt lösenord" är borttaget härifrån! */}
-
-            {/* Länk med pekfinger-cursor */}
             <p 
                 className="mobile-only-link" 
                 onClick={() => setIsRegisterActive(true)}
@@ -107,7 +124,7 @@ export function AuthPage() {
                 Ny här? Skapa konto
             </p>
 
-            <button type="submit">Logga in</button>
+            <button type="submit" disabled={loading}>Logga in</button>
             {msg && <p className={msg.isError ? "error" : "success"}>{msg.text}</p>}
           </form>
         </div>

@@ -188,3 +188,61 @@ button[type="submit"], .primary-btn {
   font-size: 14px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
+/* --- LADDNINGS-ANIMATION --- */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  
+  /* --- NYTT: Helt genomskinlig bakgrund --- */
+  background: transparent; 
+  backdrop-filter: none; /* Inget sudd/blur */
+  /* ---------------------------------------- */
+
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 10px;
+}
+
+.truck-anim {
+  font-size: 4rem; /* Storlek på lastbilen */
+  display: inline-block;
+  animation: drive-pass 1.5s infinite linear;
+}
+
+.loading-text {
+  margin-top: 10px;
+  font-weight: bold;
+  color: #333;
+  animation: pulse 1s infinite ease-in-out;
+}
+
+/* Lastbilen kör från vänster till höger */
+@keyframes drive-pass {
+  0% {
+    transform: translateX(-150px) scaleX(-1); /* scaleX(-1) vänder den om den kör åt fel håll, ta bort om den kör baklänges! */
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(150px) scaleX(-1);
+    opacity: 0;
+  }
+}
+
+/* Texten pulserar lite */
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
