@@ -264,3 +264,5 @@ The "Ghost Scroll": The most annoying bug was that the background page kept scro
 The Solution: I solved the scrolling issue by using a React useEffect hook to programmatically lock the document body scroll when the component mounts. I also cleaned up the UI by removing non-functional links like "Forgot Password" and adding proper cursor feedback.
 
 The result is a rock-solid, responsive authentication screen.
+
+I realized the login screen needed better feedback when waiting for the server. Instead of a boring spinner, I added a custom animation of a truck driving across the screen. It appears instantly when you click "Login" or "Register" and drives over the form (with a transparent background) to show that the app is working.
