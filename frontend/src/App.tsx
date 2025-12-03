@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import { HealthStatus } from './components/HealthStatus';
 import { RoutePlanner } from './components/RoutePlanner';
 import { SavedRoutesList } from './components/SavedRoutesList';
-import { RegisterForm } from './components/RegisterForm';
-import { LoginForm } from './components/LoginForm';
+import { AuthPage } from './components/AuthPage'; // <--- Vi använder BARA denna nu
 import { CurrentUser } from './components/CurrentUser';
 import { DriveView } from './components/DriveView';
 import { type SavedRoute } from './api/routeClient';
@@ -17,8 +15,7 @@ function App() {
   const [routeToEdit, setRouteToEdit] = useState<SavedRoute | null>(null);
   const [activeTab, setActiveTab] = useState<'plan' | 'history' | 'drive'>('plan');
   
-  // NYTT: State för att visa registrerings-popupen
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  // Vi behöver inte längre "showRegisterModal" här, AuthPage sköter det!
 
   useEffect(() => {
     const token = localStorage.getItem("jwt_token");
@@ -44,36 +41,17 @@ function App() {
   return (
     <div className="app-container">
       
+      {/* Om inloggad: Visa inloggad användare högst upp */}
       {isLoggedIn && <div style={{padding: '10px'}}><CurrentUser /></div>}
 
-      {/* --- LOGIN FLOW (NY LOGIK) --- */}
+      {/* --- LOGIN FLOW --- */}
       {!isLoggedIn ? (
-        <div style={{ padding: '2rem', paddingTop: '4rem', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <h1 style={{marginBottom: '2rem', fontSize: '2.5rem'}}>Routing App 🚛</h1>
-          
-          {/* Visa bara inloggning först */}
-          <LoginForm onOpenRegister={() => setShowRegisterModal(true)} />
+        
+        // HÄR ÄR ENDA RADEN SOM BEHÖVS FÖR LOGIN/REGISTER NU:
+        <AuthPage />
 
-          {/* --- REGISTRERINGS-MODAL --- */}
-          {showRegisterModal && (
-            <div style={{
-                position: 'fixed',
-                top: 0, left: 0, right: 0, bottom: 0,
-                background: 'rgba(0,0,0,0.5)', // Mörkare bakgrund
-                backdropFilter: 'blur(5px)',    // Snygg blur
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 3000
-            }}>
-                <RegisterForm onClose={() => setShowRegisterModal(false)} />
-            </div>
-          )}
-          {/* --------------------------- */}
-
-        </div>
       ) : (
-        /* --- HUVUD-APPEN (Samma som förut) --- */
+        /* --- HUVUD-APPEN (Visas när man är inloggad) --- */
         <div style={{ padding: activeTab === 'drive' ? '0' : '1rem', paddingBottom: '80px' }}>
           
           {activeTab === 'plan' && (

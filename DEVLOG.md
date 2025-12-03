@@ -240,3 +240,9 @@ I initially tried to solve this by switching to Supabase's Transaction Pooler on
 After several failed attempts to configure Hibernate to work with the transaction pooler, I decided to revert to the standard Session Mode on port 5432. The breakthrough solution was to strictly limit the application's resource usage. I configured the HikariCP connection pool to only allow a maximum of 5 active connections (instead of the default 10) and set aggressive timeouts to release idle connections quickly.
 
 Finally, I encountered a "java.net.UnknownHostException" which turned out to be caused by special characters in my database password breaking the JDBC URL string. I fixed this by refactoring the configuration to use separate environment variables for the username and password instead of a single long connection string. The system is now stable and handles deployments without hitting connection limits.
+
+- Improved Authentication UX: Streamlined the login and registration flow.
+The application now displays a single, clean "Login" card by default, reducing visual clutter.
+Implemented a modal-based registration form triggered by a "Create account" link within the login view.
+Added a close button to the registration modal for better navigation control.
+Refactored `App.tsx`, `LoginForm.tsx`, and `RegisterForm.tsx` to support this new state-driven UI flow.
