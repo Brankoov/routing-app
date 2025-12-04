@@ -4,11 +4,12 @@ import {
   saveRoute,
   type RouteOptimizationResponse,
   type SavedRoute,
+  formatDuration
 } from "../api/routeClient";
 import RouteMap from "./RouteMap";
 import AutoAddressInput from "./AutoAddressInput";
-import { DEMO_ROUTE } from "../data/demoRoute";
-import { formatDuration } from "../api/routeClient";
+// VIKTIGT: Vi importerar DEMO_ROUTES nu istället för DEMO_ROUTE
+import { DEMO_ROUTES } from "../data/demoRoute"; 
 
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
@@ -31,14 +32,14 @@ type StopInput = {
   address: string;
 };
 
-const MAX_STOPS = 48;
+const MAX_STOPS = 48; // Max 50 totalt (Start + Slut + 48 stopp)
 
 type Props = {
   routeToLoad: SavedRoute | null;
-  onStartDrive: (route: SavedRoute) => void; // <--- NY PROP
+  onStartDrive: (route: SavedRoute) => void;
 };
 
-export function RoutePlanner({ routeToLoad, onStartDrive }: Props) { // <--- Ta emot den här
+export function RoutePlanner({ routeToLoad, onStartDrive }: Props) {
   const [startAddress, setStartAddress] = useState("");
   const [endAddress, setEndAddress] = useState("");
   const [stops, setStops] = useState<StopInput[]>([
@@ -53,24 +54,24 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) { // <--- Ta 
   
   const [stopTime, setStopTime] = useState(5);
 
+  // Ladda sparad rutt (från historik)
   useEffect(() => {
     if (routeToLoad) {
         setStartAddress(routeToLoad.startAddress || "");
         setEndAddress(routeToLoad.endAddress || "");
         setRouteName(routeToLoad.name + " (Kopia)");
 
-        // 1. Fyll i formuläret (Övre kortet)
+        // 1. Fyll i formuläret
         const formStops = [...routeToLoad.stops]
             .sort((a, b) => a.orderIndex - b.orderIndex)
             .map(s => ({
-                id: String(Date.now() + Math.random()), // Nya IDn för att inte krocka
+                id: String(Date.now() + Math.random()),
                 address: s.address
             }));
         
         setStops(formStops);
 
-        // 2. Fyll i resultatet direkt! (Nedre kortet) <--- NYTT HÄR
-        // Vi återskapar ett "resultat-objekt" från den sparade datan
+        // 2. Återskapa resultatet direkt
         const reconstructedResult: RouteOptimizationResponse = {
             orderedStops: routeToLoad.stops.map(s => ({
                 id: String(s.id),
@@ -85,27 +86,38 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) { // <--- Ta 
             totalDuration: routeToLoad.totalDuration
         };
 
-        setResult(reconstructedResult); // Visa resultatet direkt!
-        // setResult(null); <--- DENNA TOG VI BORT
-
+        setResult(reconstructedResult);
         setSuccessMsg(null);
         setState("idle");
     }
   }, [routeToLoad]);
 
-  const loadDemoData = () => {
-    setStartAddress(DEMO_ROUTE.start);
-    setEndAddress(DEMO_ROUTE.end);
+  // --- NY FUNKTION FÖR ATT LADDA DEMO-LISTOR ---
+  const loadDemoRoute = (addresses: string[], nameDescription: string) => {
+    if (!addresses || addresses.length < 2) return;
 
-    const demoStops = DEMO_ROUTE.stops.map((address, index) => ({
-      id: String(Date.now() + index), 
-      address: address
+    // 1. Sätt Start (Första adressen)
+    setStartAddress(addresses[0]);
+
+    // 2. Sätt Slut (Sista adressen)
+    setEndAddress(addresses[addresses.length - 1]);
+
+    // 3. Sätt alla däremellan som stopp
+    const middlePoints = addresses.slice(1, -1);
+    
+    const newStops = middlePoints.map((addr) => ({
+      id: crypto.randomUUID(), // Unikt ID
+      address: addr
     }));
 
-    setStops(demoStops);
+    setStops(newStops);
+    
+    // Nollställ resultat så man måste klicka på Optimera igen
     setResult(null);
-    setRouteName("Stor Måndagsrunda (Demo)");
+    setRouteName(nameDescription); // Förslag på namn
+    setSuccessMsg(null);
   };
+  // ---------------------------------------------
 
   const hasEnoughData =
     startAddress.trim().length > 0 &&
@@ -201,22 +213,35 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) { // <--- Ta 
           </div>
         )}
 
-        <div style={{marginBottom: '1.5rem', textAlign: 'center'}}>
+        {/* --- NYA DEMO-KNAPPAR --- */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', background: '#f5f5f5', padding: '10px', borderRadius: '8px' }}>
+            <span style={{fontSize: '0.9rem', color: '#666', fontWeight: 'bold'}}>🧪 Ladda Demo:</span>
+            
             <button 
-                type="button" 
-                onClick={loadDemoData}
-                style={{
-                    background: '#e0f7fa', 
-                    color: '#006064', 
-                    border: '1px dashed #0097a7',
-                    width: '100%',
-                    padding: '10px',
-                    fontSize: '0.9rem'
-                }}
+              type="button" 
+              onClick={() => loadDemoRoute(DEMO_ROUTES.del1, "City Rundan")}
+              style={{background: '#e0f7fa', color: '#006064', border: '1px solid #0097a7', padding: '6px 12px', fontSize: '0.8rem'}}
             >
-                🧪 Ladda 30-stopp Demo
+              Del 1 (City)
+            </button>
+
+            <button 
+              type="button" 
+              onClick={() => loadDemoRoute(DEMO_ROUTES.del2, "Vasastan Rundan")}
+              style={{background: '#e0f7fa', color: '#006064', border: '1px solid #0097a7', padding: '6px 12px', fontSize: '0.8rem'}}
+            >
+              Del 2 (Vasastan)
+            </button>
+
+            <button 
+              type="button" 
+              onClick={() => loadDemoRoute(DEMO_ROUTES.del3, "Birkastan Rundan")}
+              style={{background: '#e0f7fa', color: '#006064', border: '1px solid #0097a7', padding: '6px 12px', fontSize: '0.8rem'}}
+            >
+              Del 3 (Birkastan)
             </button>
         </div>
+        {/* ------------------------ */}
 
         <form
           onSubmit={handleSubmit}
@@ -233,7 +258,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) { // <--- Ta 
           />
 
           <div style={{ marginTop: "0.5rem" }}>
-            <label>Mellanstop</label>
+            <label>Mellanstop ({stops.length})</label>
             
             <div style={{display: 'flex', flexDirection: 'column', gap: '0.8rem'}}>
               {stops.map((stop, index) => (
@@ -356,7 +381,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) { // <--- Ta 
             </div>
           </div>
 
-          {/* --- NY KNAPP: STARTA KÖRNING --- */}
+          {/* --- KNAPP: STARTA KÖRNING --- */}
           <button
             onClick={() => {
                 const tempRoute: any = {
