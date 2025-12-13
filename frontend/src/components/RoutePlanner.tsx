@@ -8,8 +8,9 @@ import {
 } from "../api/routeClient";
 import RouteMap from "./RouteMap";
 import AutoAddressInput from "./AutoAddressInput";
-// VIKTIGT: Vi importerar DEMO_ROUTES nu istället för DEMO_ROUTE
-import { DEMO_ROUTES } from "../data/demoRoute"; 
+import { DEMO_ROUTES } from "../data/demoRoute";
+// NYTT: Importera modalen
+import { BulkImportModal } from "./BulkImportModal";
 
 function buildGoogleMapsUrl(stop: {
   latitude: number | null;
@@ -54,6 +55,9 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) {
   
   const [stopTime, setStopTime] = useState(5);
 
+  // NYTT STATE: Visa/Dölj bulk-import modalen
+  const [showBulkImport, setShowBulkImport] = useState(false);
+
   // Ladda sparad rutt (från historik)
   useEffect(() => {
     if (routeToLoad) {
@@ -92,7 +96,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) {
     }
   }, [routeToLoad]);
 
-  // --- NY FUNKTION FÖR ATT LADDA DEMO-LISTOR ---
+  // --- FUNKTION FÖR ATT LADDA DEMO-LISTOR ---
   const loadDemoRoute = (addresses: string[], nameDescription: string) => {
     if (!addresses || addresses.length < 2) return;
 
@@ -117,7 +121,26 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) {
     setRouteName(nameDescription); // Förslag på namn
     setSuccessMsg(null);
   };
-  // ---------------------------------------------
+  
+  // --- NY FUNKTION: Hantera Bulk Import ---
+  const handleBulkImport = (addresses: string[]) => {
+    // Skapa nya stopp-objekt av textraderna
+    const newStops = addresses.map(addr => ({
+      id: String(Date.now() + Math.random()), // Unikt ID för React list keys
+      address: addr
+    }));
+
+    // Lägg till dem i den befintliga listan
+    setStops(prev => {
+        // Om listan bara har en tom rad från början (vilket är standard), ersätt den.
+        if (prev.length === 1 && prev[0].address === "") {
+            return newStops;
+        }
+        // Annars lägg till i slutet
+        return [...prev, ...newStops];
+    });
+  };
+  // ----------------------------------------
 
   const hasEnoughData =
     startAddress.trim().length > 0 &&
@@ -203,6 +226,14 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) {
 
   return (
     <section>
+      {/* NYTT: Visa modalen om showBulkImport är true */}
+      {showBulkImport && (
+        <BulkImportModal 
+            onImport={handleBulkImport} 
+            onClose={() => setShowBulkImport(false)} 
+        />
+      )}
+
       <div className="card">
         
         {state === "loading" && (
@@ -213,7 +244,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) {
           </div>
         )}
 
-        {/* --- NYA DEMO-KNAPPAR --- */}
+        {/* --- DEMO OCH IMPORT KNAPPAR --- */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', background: '#f5f5f5', padding: '10px', borderRadius: '8px' }}>
             <span style={{fontSize: '0.9rem', color: '#666', fontWeight: 'bold'}}>🧪 Ladda Demo:</span>
             
@@ -239,6 +270,25 @@ export function RoutePlanner({ routeToLoad, onStartDrive }: Props) {
               style={{background: '#e0f7fa', color: '#006064', border: '1px solid #0097a7', padding: '6px 12px', fontSize: '0.8rem'}}
             >
               Del 3 (Birkastan)
+            </button>
+
+            {/* NY KNAPP: Klistra in lista */}
+            <button 
+              type="button" 
+              onClick={() => setShowBulkImport(true)}
+              style={{
+                  background: '#333', 
+                  color: 'white', 
+                  border: '1px solid #333', 
+                  padding: '6px 12px', 
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  marginLeft: 'auto' // Skjuter den till höger
+              }}
+            >
+              📋 Klistra in lista
             </button>
         </div>
         {/* ------------------------ */}
