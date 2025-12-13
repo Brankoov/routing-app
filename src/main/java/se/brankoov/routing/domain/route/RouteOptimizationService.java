@@ -23,7 +23,7 @@ import java.util.stream.IntStream;
 @Service
 public class RouteOptimizationService {
 
-    private static final double END_WEIGHT = 0.2;
+    private static final double END_WEIGHT = 0.1;
 
     private final RoutingEngine routingEngine;
     private final GeocodingService geocodingService;
@@ -89,9 +89,38 @@ public class RouteOptimizationService {
 
         System.out.println("✅ ORS Matrix svarade! Storlek: " + durations.length + "x" + durations[0].length);
 
-        // 6. Optimera (NN + 2-Opt)
-        List<StopResponse> initialRoute = solveTspNearestNeighbour(stopsWithCoords, durations);
-        List<StopResponse> optimizedRoute = optimizeTwoOpt(initialRoute, durations, stopsWithCoords);
+        // --- PATCHA MATRISEN ---
+        // OBS: Utkommenterad för stabilitet/cleaner map (aktivera om du vill testa "gå över gatan" igen)
+         patchMatrixWithWalkingPhysics(durations, stopsWithCoords, startPos, endPos);
+        // -----------------------
+
+        // 6. Optimera (NN + 2-Opt + Simulated Annealing Multi-Start)
+        System.out.println("Startar optimering...");
+
+        // Steg A: Hitta en bra startgissning (Nearest Neighbour + 2-Opt)
+        List<StopResponse> bestRouteSoFar = solveTspNearestNeighbour(stopsWithCoords, durations);
+        bestRouteSoFar = optimizeTwoOpt(bestRouteSoFar, durations, stopsWithCoords);
+
+        double minDuration = calculateTotalCost(bestRouteSoFar, durations, stopsWithCoords);
+
+        // Steg B: MULTI-START SIMULATED ANNEALING
+        // Vi kör algoritmen 50 gånger med olika slumpfrön för att hitta den "sanna" bästa vägen.
+        int ITERATIONS = 50;
+        System.out.println("Kör " + ITERATIONS + " iterationer av Simulated Annealing...");
+
+        for (int i = 0; i < ITERATIONS; i++) {
+            // Skicka in en kopia av rutten för att finputsa
+            List<StopResponse> candidate = solveSimulatedAnnealing(new ArrayList<>(bestRouteSoFar), durations, stopsWithCoords);
+            double cost = calculateTotalCost(candidate, durations, stopsWithCoords);
+
+            if (cost < minDuration) {
+                // System.out.println("Hittade bättre rutt! Förbättring: " + (minDuration - cost) + " sek");
+                minDuration = cost;
+                bestRouteSoFar = new ArrayList<>(candidate);
+            }
+        }
+
+        List<StopResponse> optimizedRoute = bestRouteSoFar;
 
         // 7. Hämta Geometri
         List<List<Double>> finalPath = new ArrayList<>();
@@ -103,7 +132,7 @@ public class RouteOptimizationService {
 
         String geometry = orsDirectionsService.getRouteGeometry(finalPath);
 
-        // 8. Räkna ut total tid (NYTT!)
+        // 8. Räkna ut total tid
         long totalSeconds = calculateTotalDuration(optimizedRoute, durations, stopsWithCoords);
 
         // 9. Returnera
@@ -117,9 +146,14 @@ public class RouteOptimizationService {
         return new RouteOptimizationResponse(finalResult, finalResult.size(), geometry, totalSeconds);
     }
 
-    // --- HJÄLPMETOD FÖR TID ---
+    // --- HJÄLPMETOD FÖR TID (Long för API-svar) ---
     private long calculateTotalDuration(List<StopResponse> route, double[][] durations, List<StopResponse> originalStops) {
-        long totalTime = 0;
+        return (long) calculateTotalCost(route, durations, originalStops);
+    }
+
+    // --- HJÄLPMETOD FÖR KOSTNAD (Double för intern optimering) ---
+    private double calculateTotalCost(List<StopResponse> route, double[][] durations, List<StopResponse> originalStops) {
+        double totalTime = 0;
         int endIndex = durations.length - 1;
         int prevMatrixIndex = 0; // Start
 
@@ -133,7 +167,7 @@ public class RouteOptimizationService {
         return totalTime;
     }
 
-    // --- TSP LÖSARE (Samma som förut) ---
+    // --- TSP LÖSARE (Nearest Neighbour) ---
     private List<StopResponse> solveTspNearestNeighbour(List<StopResponse> stops, double[][] durations) {
         List<StopResponse> remaining = new ArrayList<>(stops);
         List<StopResponse> ordered = new ArrayList<>();
@@ -165,6 +199,7 @@ public class RouteOptimizationService {
         return ordered;
     }
 
+    // --- 2-OPT ---
     private List<StopResponse> optimizeTwoOpt(List<StopResponse> route, double[][] durations, List<StopResponse> originalStops) {
         List<StopResponse> improvedRoute = new ArrayList<>(route);
         boolean improvement = true;
@@ -212,21 +247,73 @@ public class RouteOptimizationService {
         return cost;
     }
 
+    // --- SIMULATED ANNEALING (Uppdaterade parametrar för Multi-Start) ---
+    private List<StopResponse> solveSimulatedAnnealing(List<StopResponse> currentRoute, double[][] durations, List<StopResponse> originalStops) {
+        List<StopResponse> bestRoute = new ArrayList<>(currentRoute);
+        List<StopResponse> currentSolution = new ArrayList<>(currentRoute);
+
+        double currentCost = calculateTotalCost(currentSolution, durations, originalStops);
+        double bestCost = currentCost;
+
+        // Parametrar justerade för bredare sökning
+        double temperature = 5000.0;
+        double coolingRate = 0.98;
+        double absoluteTemperature = 0.1;
+
+        while (temperature > absoluteTemperature) {
+            int n = currentSolution.size();
+
+            // Slumpa två index
+            int i = (int) (Math.random() * (n - 1));
+            int k = (int) (Math.random() * (n - 1));
+
+            if (i >= k) {
+                int temp = i; i = k; k = temp;
+            }
+            if (i == k) {
+                continue;
+            }
+
+            // Utför en slumpmässig 2-opt swap
+            List<StopResponse> newSolution = twoOptSwap(currentSolution, i, k);
+            double newCost = calculateTotalCost(newSolution, durations, originalStops);
+
+            // Ska vi acceptera?
+            if (newCost < currentCost) {
+                currentSolution = newSolution;
+                currentCost = newCost;
+
+                if (currentCost < bestCost) {
+                    bestRoute = new ArrayList<>(currentSolution);
+                    bestCost = currentCost;
+                }
+            } else {
+                double acceptanceProbability = Math.exp((currentCost - newCost) / temperature);
+                if (Math.random() < acceptanceProbability) {
+                    currentSolution = newSolution;
+                    currentCost = newCost;
+                }
+            }
+            temperature *= coolingRate;
+        }
+
+        return bestRoute;
+    }
+
     @Transactional
     public RouteEntity saveRoute(SaveRouteRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         UserEntity currentUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // HÄR SKER ANROPET. KOLLA NOGA ATT ORDNINGEN ÄR RÄTT:
         RouteEntity entity = new RouteEntity(
-                request.name(),                 // 1. String
-                request.description(),          // 2. String
-                request.startAddress(),         // 3. String
-                request.endAddress(),           // 4. String
-                request.geometry(),             // 5. String
-                request.totalDuration(),        // 6. Long
-                request.averageStopDuration()   // 7. Integer <--- Denna måste matcha Request
+                request.name(),
+                request.description(),
+                request.startAddress(),
+                request.endAddress(),
+                request.geometry(),
+                request.totalDuration(),
+                request.averageStopDuration()
         );
 
         entity.setOwner(currentUser);
@@ -244,5 +331,41 @@ public class RouteOptimizationService {
     public List<RouteEntity> getMyRoutes() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return routeRepository.findAllByOwnerUsername(username);
+    }
+
+    /**
+     * Patchar matrisen: Om två stopp är väldigt nära varandra geografiskt (fågelvägen),
+     * anta att vi kan "gå över gatan" eller göra en snabb sväng, oavsett vad trafikreglerna säger.
+     */
+    private void patchMatrixWithWalkingPhysics(double[][] durations, List<StopResponse> stopsWithCoords, GeocodingService.LatLng startPos, GeocodingService.LatLng endPos) {
+        List<GeocodingService.LatLng> allPoints = new ArrayList<>();
+        allPoints.add(startPos);
+        for (StopResponse s : stopsWithCoords) {
+            allPoints.add(new GeocodingService.LatLng(s.latitude(), s.longitude()));
+        }
+        allPoints.add(endPos);
+
+        double WALKING_SPEED_M_S = 1.4; // Ca 5 km/h
+        double MAX_WALK_DIST_METERS = 80; // Om det är under 80m, tillåt "gång"
+
+        for (int i = 0; i < durations.length; i++) {
+            for (int j = 0; j < durations.length; j++) {
+                if (i == j) continue;
+
+                GeocodingService.LatLng p1 = allPoints.get(i);
+                GeocodingService.LatLng p2 = allPoints.get(j);
+
+                double distMeters = DistanceCalculator.distanceInKm(p1.lat(), p1.lng(), p2.lat(), p2.lng()) * 1000;
+
+                if (distMeters < MAX_WALK_DIST_METERS) {
+                    double walkingTime = distMeters / WALKING_SPEED_M_S;
+                    double totalCheatTime = walkingTime + 15;
+
+                    if (totalCheatTime < durations[i][j]) {
+                        durations[i][j] = totalCheatTime;
+                    }
+                }
+            }
+        }
     }
 }

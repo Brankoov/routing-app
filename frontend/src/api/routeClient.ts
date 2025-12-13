@@ -98,7 +98,7 @@ export async function optimizeRoute(params: {
   return response.json() as Promise<RouteOptimizationResponse>;
 }
 
-export async function saveRoute(data: SaveRouteRequest): Promise<void> {
+export async function saveRoute(data: SaveRouteRequest): Promise<SavedRoute> {
   const response = await fetch(`${API_BASE_URL}/api/routes/save`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -108,10 +108,12 @@ export async function saveRoute(data: SaveRouteRequest): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to save route. Status: ${response.status}`);
   }
+  
+  return response.json() as Promise<SavedRoute>;
 }
 
-export async function fetchAllRoutes(): Promise<SavedRoute[]> {
-  // HÄR ÄR ÄNDRINGEN:
+// NAMNÄNDRING: fetchAllRoutes -> getSavedRoutes (för att matcha SavedRoutesList)
+export async function getSavedRoutes(): Promise<SavedRoute[]> {
   const response = await fetch(`${API_BASE_URL}/api/routes`, {
     method: 'GET',
     headers: getAuthHeaders(),
