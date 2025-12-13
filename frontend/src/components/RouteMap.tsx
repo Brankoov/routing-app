@@ -15,6 +15,7 @@ import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 import { RouteArrows } from './RouteArrows';
+import { UserLocation } from './UserLocation';
 
 const DefaultIcon = L.icon({
     iconUrl: icon,
@@ -208,6 +209,10 @@ export default function RouteMap({ startAddress, endAddress, stops, geometry, co
                             <Popup><strong>Mål:</strong> {endAddress}</Popup>
                         </Marker>
                     )}
+
+                    {/* --- NYTT: LÄGG TILL SPÅRNING HÄR --- */}
+                    <UserLocation />
+                    {/* ------------------------------------ */}
 
                 </MapContainer>
             </div>

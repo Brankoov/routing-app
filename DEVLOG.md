@@ -280,3 +280,15 @@ My solution was a sort of "Walking Patch" in the backend. The system now checks 
 To make life easier during testing (and for the user), I also added a Bulk Import feature. Now you can just paste a list of addresses directly instead of typing them in one by one.
 
 Reflection: To be honest, the optimization in city environments still feels a bit hit-or-miss. The "walk across the street" logic works okay sometimes and saves the stop order, but in other cases, it still creates weird routes or "spaghetti" lines on the map when OpenRouteService tries to draw the path. It works reasonably well occasionally, but far from always. I definitely need to keep looking into this to find a more stable solution.
+
+I realized today that just showing a static position on the map wasn't good enough for a driver. It was frustrating because if I tried to scroll the map to look at the next stop, the app would instantly snap me back to my current position.
+
+So, I implemented a "Smart Follow" mode similar to Google Maps.
+
+Auto-Center: The map follows the truck automatically.
+
+Drag-to-Unfollow: If the driver touches and drags the map, the "follow mode" pauses (button turns orange), allowing them to look around freely.
+
+Re-center: Clicking the button again snaps the view back to the truck (button turns green).
+
+I also added the Wake Lock API to prevent the phone screen from turning off while driving, and I made the little truck icon rotate based on the GPS heading. It feels much smoother and more professional now.
