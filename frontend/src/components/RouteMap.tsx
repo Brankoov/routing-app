@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -8,10 +8,8 @@ import {
   useMap
 } from 'react-leaflet';
 import L from 'leaflet';
-import type { OrderedStop } from '../api/routeClient';
 import 'leaflet/dist/leaflet.css';
 
-// ... (Behåll din befintliga kod för Ikoner och decodePolyline här) ...
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 import { RouteArrows } from './RouteArrows';
@@ -24,6 +22,8 @@ const DefaultIcon = L.icon({
     iconAnchor: [12, 41]
 });
 L.Marker.prototype.options.icon = DefaultIcon;
+
+// --- HJÄLPFUNKTIONER ---
 
 function decodePolyline(str: string, precision: number = 5): [number, number][] {
     let index = 0,
@@ -64,11 +64,9 @@ function decodePolyline(str: string, precision: number = 5): [number, number][] 
   
         coordinates.push([lat / factor, lng / factor]);
     }
-  
     return coordinates;
 }
 
-// ... (Behåll createNumberedIcon här) ...
 function createNumberedIcon(label: string | number, isCompleted: boolean = false) {
     let bgColor = '#333'; 
     let opacity = '1';
@@ -106,23 +104,70 @@ function createNumberedIcon(label: string | number, isCompleted: boolean = false
     });
 }
 
-function MapUpdater({ center, trigger }: { center: [number, number], trigger?: string }) {
+function getGoogleMapsLink(lat: number, lng: number) {
+    return `http://googleusercontent.com/maps.google.com/maps?daddr=${lat},${lng}&dirflg=d`;
+}
+
+// --- KOMPONENTER ---
+
+function MapResizer({ isFullscreen }: { isFullscreen: boolean }) {
     const map = useMap();
     useEffect(() => {
-        map.setView(center, map.getZoom());
-    }, [trigger]);
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 300);
+    }, [isFullscreen, map]);
     return null;
 }
+
+function MapUpdater({ center, trigger }: { center: [number, number], trigger?: string }) {
+    const map = useMap();
+    const prevTrigger = useRef(trigger);
+
+    useEffect(() => {
+        if (trigger !== prevTrigger.current) {
+            map.setView(center, map.getZoom());
+            prevTrigger.current = trigger;
+        }
+    }, [trigger, center, map]);
+    return null;
+}
+
+type MapStop = {
+    id: string | number;
+    address: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    order?: number; 
+    orderIndex?: number;
+};
 
 type Props = {
     startAddress: string;
     endAddress: string;
-    stops: OrderedStop[];
+    stops: MapStop[];
     geometry?: string;
     completedStops?: Set<number>;
+    onStopComplete?: (id: string | number) => void; 
+    isFullscreen?: boolean;
+    toggleFullscreen?: () => void;
+    isDarkMode?: boolean;
 };
 
-export default function RouteMap({ startAddress, endAddress, stops, geometry, completedStops }: Props) {
+export default function RouteMap({ 
+    startAddress, 
+    endAddress, 
+    stops, 
+    geometry, 
+    completedStops,
+    onStopComplete,
+    isFullscreen = false,
+    toggleFullscreen,
+    isDarkMode = false
+}: Props) {
+    
+    const [showPolyline, setShowPolyline] = useState(true);
+
     const routePath: [number, number][] = geometry 
         ? decodePolyline(geometry)
         : stops
@@ -135,48 +180,126 @@ export default function RouteMap({ startAddress, endAddress, stops, geometry, co
     const startCoords = routePath.length > 0 ? routePath[0] : null;
     const endCoords = routePath.length > 0 ? routePath[routePath.length - 1] : null;
 
+    const tilesUrl = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
     return (
-        <div style={{ marginTop: '1rem' }}>
-            <div style={{ height: 350, borderRadius: 16, overflow: 'hidden', border: '1px solid #ddd', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+        <div style={{ marginTop: isFullscreen ? 0 : '1rem' }}>
+            <style>
+                {`
+                    .dark-mode-tiles {
+                        filter: invert(90%) hue-rotate(180deg) brightness(150%) contrast(130%) grayscale(20%) !important;
+                        -webkit-filter: invert(90%) hue-rotate(180deg) brightness(150%) contrast(130%) grayscale(20%) !important;
+                    }
+                `}
+            </style>
+
+            <div style={{ 
+                height: isFullscreen ? '100vh' : 350, 
+                // FIX: Ändrat från 100vw till 100% för att undvika scroll i sidled
+                width: '100%', 
+                maxWidth: '100%',
+                position: isFullscreen ? 'fixed' : 'relative',
+                top: isFullscreen ? 0 : 'auto',
+                left: isFullscreen ? 0 : 'auto',
+                zIndex: isFullscreen ? 9999 : 1,
+                borderRadius: isFullscreen ? 0 : 16, 
+                overflow: 'hidden', 
+                border: isFullscreen ? 'none' : '1px solid #ddd', 
+                boxShadow: isFullscreen ? 'none' : '0 4px 12px rgba(0,0,0,0.05)',
+                transition: 'height 0.3s ease',
+                background: isDarkMode ? '#222' : '#eee'
+            }}>
                 <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
                     
-                    {/* 1. RENARE KARTA (Stadia/Alidade Smooth eller Carto Light är bra) */}
-                    <TileLayer
-                        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                        attribution='© OpenStreetMap & CARTO'
-                    />
-
+                    <MapResizer isFullscreen={isFullscreen} />
                     <MapUpdater center={center} trigger={geometry} />
 
-                    {routePath.length > 1 && (
+                    <TileLayer
+                        key={isDarkMode ? 'dark' : 'light'}
+                        url={tilesUrl}
+                        attribution='© OpenStreetMap & CARTO'
+                        className={isDarkMode ? 'dark-mode-tiles' : ''} 
+                    />
+
+                    <div className="leaflet-top leaflet-right" style={{ marginTop: '130px', marginRight: '10px', pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        
+                        <div className="leaflet-control leaflet-bar" style={{border: 'none'}}>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowPolyline(!showPolyline);
+                                }}
+                                style={{
+                                    backgroundColor: isDarkMode ? '#333' : 'white',
+                                    color: isDarkMode ? 'white' : 'black',
+                                    border: 'none',
+                                    width: '40px',
+                                    height: '40px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '1.2rem',
+                                    borderRadius: '4px'
+                                }}
+                                title={showPolyline ? "Dölj ruttlinje" : "Visa ruttlinje"}
+                            >
+                                {showPolyline ? '🛣️' : '🙈'}
+                            </button>
+                        </div>
+
+                        {toggleFullscreen && (
+                            <div className="leaflet-control leaflet-bar" style={{border: 'none'}}>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleFullscreen();
+                                    }}
+                                    style={{
+                                        backgroundColor: isDarkMode ? '#333' : 'white',
+                                        color: isDarkMode ? 'white' : 'black',
+                                        border: 'none',
+                                        width: '40px',
+                                        height: '40px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '1.2rem',
+                                        borderRadius: '4px'
+                                    }}
+                                    title={isFullscreen ? "Avsluta helskärm" : "Helskärm"}
+                                >
+                                    {isFullscreen ? '🔽' : '⛶'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {showPolyline && routePath.length > 1 && (
                         <>
-                            {/* 1. KONTUR (Tunnare vit kant för kontrast) */}
                             <Polyline 
                                 key={`outline-${geometry}`} 
                                 positions={routePath} 
                                 pathOptions={{ 
-                                    color: 'white',  // Vit kant separerar blått från kartan
-                                    weight: 5,       // Sänkt från 10 till 5
+                                    color: isDarkMode ? '#000' : 'white', 
+                                    weight: 5, 
                                     opacity: 0.8,
                                     lineJoin: 'round',
                                     lineCap: 'round'
                                 }}
                             />
-                            
-                            {/* 2. VÄGEN (Smalare blå linje) */}
                             <Polyline 
                                 key={`road-${geometry}`}
                                 positions={routePath} 
                                 pathOptions={{ 
-                                    color: '#2979ff', 
-                                    weight: 3,       // Sänkt från 6 till 3 (ser mer ut som Google Maps)
+                                    color: isDarkMode ? '#64b5f6' : '#2979ff', 
+                                    weight: 3, 
                                     opacity: 1,
                                     lineJoin: 'round',
                                     lineCap: 'round'
                                 }}
                             />
-
-                            {/* 3. PILAR */}
                             <RouteArrows positions={routePath} />
                         </>
                     )}
@@ -188,17 +311,59 @@ export default function RouteMap({ startAddress, endAddress, stops, geometry, co
                     )}
 
                     {stops.map((s) => {
-                        const isDone = completedStops ? completedStops.has(Number(s.id)) : false;
+                        const sIdNum = Number(s.id);
+                        const isDone = completedStops ? completedStops.has(sIdNum) : false;
+                        const orderNum = (s.order ?? s.orderIndex ?? 0) + 1;
+
                         return s.latitude && s.longitude && (
                             <Marker
                                 key={s.id}
                                 position={[s.latitude, s.longitude]}
-                                icon={createNumberedIcon(s.order + 1, isDone)}
+                                icon={createNumberedIcon(orderNum, isDone)}
                                 zIndexOffset={isDone ? -100 : 100}
                             >
                                 <Popup>
-                                    <strong>#{s.order + 1}</strong> {isDone ? "(Klar)" : ""}<br/>
-                                    {s.address}
+                                    <div style={{textAlign: 'center', minWidth: '160px'}}>
+                                        <strong style={{fontSize: '1.1rem'}}>#{orderNum}</strong> {isDone ? "(Klar)" : ""}<br/>
+                                        <p style={{margin: '5px 0 10px 0'}}>{s.address}</p>
+                                        
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                                            <a 
+                                                href={getGoogleMapsLink(s.latitude, s.longitude)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{
+                                                    background: '#4285F4',
+                                                    color: 'white',
+                                                    textDecoration: 'none',
+                                                    padding: '8px 12px',
+                                                    borderRadius: '4px',
+                                                    fontWeight: 'bold',
+                                                    display: 'block',
+                                                    textAlign: 'center'
+                                                }}
+                                            >
+                                                🗺️ Navigera hit
+                                            </a>
+
+                                            {onStopComplete && (
+                                                <button
+                                                    onClick={() => onStopComplete(s.id)}
+                                                    style={{
+                                                        background: isDone ? '#e0e0e0' : '#4caf50',
+                                                        color: isDone ? '#333' : 'white',
+                                                        border: isDone ? '1px solid #ccc' : 'none',
+                                                        padding: '8px 12px',
+                                                        borderRadius: '4px',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    {isDone ? '↩️ Ångra' : '✅ Markera klar'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
                                 </Popup>
                             </Marker>
                         );
@@ -210,9 +375,7 @@ export default function RouteMap({ startAddress, endAddress, stops, geometry, co
                         </Marker>
                     )}
 
-                    {/* --- NYTT: LÄGG TILL SPÅRNING HÄR --- */}
                     <UserLocation />
-                    {/* ------------------------------------ */}
 
                 </MapContainer>
             </div>

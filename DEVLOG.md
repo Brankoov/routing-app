@@ -292,3 +292,11 @@ Drag-to-Unfollow: If the driver touches and drags the map, the "follow mode" pau
 Re-center: Clicking the button again snaps the view back to the truck (button turns green).
 
 I also added the Wake Lock API to prevent the phone screen from turning off while driving, and I made the little truck icon rotate based on the GPS heading. It feels much smoother and more professional now.
+
+Global Dark Mode & UI Polish: I realized that while the map had a dark mode, the rest of the app (menus, lists, cards) was still blindingly white in low-light conditions. I implemented a global "App Theme" that is controlled via the new user profile menu.
+
+Independent Map Theme: I separated the map's theme from the app's theme. This gives the driver full control: they can have a dark UI to save battery/eyes but keep the map light for better visibility, or vice versa.
+
+Visual Improvements: I overhauled the input fields and cards to look good in both light and dark modes. I also fixed a layout bug on mobile where the bottom navigation bar buttons were getting cut off by adding proper spacing and safe-area padding.
+
+Technical Fixes: I unified the API naming conventions (renamed fetchAllRoutes to getSavedRoutes) to stop TypeScript from complaining and ensured the body background color changes dynamically to prevent white flashes when scrolling.

@@ -1,250 +1,125 @@
 import { useEffect, useState } from "react";
-import { fetchAllRoutes, deleteRoute, type SavedRoute } from "../api/routeClient";
-import RouteMap from "./RouteMap";
+import { getSavedRoutes, deleteRoute, type SavedRoute } from "../api/routeClient";
 
-// FIXAD: Google Maps-länk (Universal Link)
-function buildGoogleMapsUrl(stop: {
-  latitude: number | null;
-  longitude: number | null;
-  address: string;
-}) {
-  const baseUrl = "https://www.google.com/maps/search/?api=1&query=";
-
-  if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
-    return `${baseUrl}${stop.latitude},${stop.longitude}`;
-  }
-  
-  const q = encodeURIComponent(stop.address);
-  return `${baseUrl}${q}`;
-}
-
-// UPPDATERADE PROPS
 type Props = {
   onEdit: (route: SavedRoute) => void;
-  onStartDrive: (route: SavedRoute) => void; // <--- NY PROP
+  onStartDrive: (route: SavedRoute) => void;
+  isDarkMode: boolean; 
 };
 
-export function SavedRoutesList({ onEdit, onStartDrive }: Props) { // <--- Ta emot den här
+export function SavedRoutesList({ onEdit, onStartDrive, isDarkMode }: Props) {
   const [routes, setRoutes] = useState<SavedRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-
-  // State för avbockade stopp i historiken (endast visuellt här)
-  const [completedStops, setCompletedStops] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    loadRoutes();
+    fetchRoutes();
   }, []);
 
-  async function loadRoutes() {
+  async function fetchRoutes() {
     try {
       setLoading(true);
-      const data = await fetchAllRoutes();
-      setRoutes(data.reverse());
-      setLoading(false);
+      // Nu finns denna funktion i routeClient.ts!
+      const data = await getSavedRoutes();
+      setRoutes(data);
     } catch (err) {
       console.error(err);
-      setError("Kunde inte hämta rutter.");
+      setError("Kunde inte hämta sparade rutter.");
+    } finally {
       setLoading(false);
     }
   }
 
-  async function handleDelete(id: number, e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!confirm("Är du säker på att du vill ta bort rutten?")) return;
-    
+  const handleDelete = async (id: number) => {
+    if (!confirm("Är du säker på att du vill ta bort denna rutt?")) return;
     try {
       await deleteRoute(id);
-      loadRoutes(); 
-      if (expandedId === id) setExpandedId(null);
+      setRoutes((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
-      alert("Kunde inte ta bort rutten");
+      alert("Kunde inte ta bort rutt");
     }
-  }
-
-  function toggleExpand(id: number) {
-    if (expandedId === id) setExpandedId(null);
-    else setExpandedId(id);
-  }
-
-  function handleEditClick(route: SavedRoute, e: React.MouseEvent) {
-    e.stopPropagation();
-    onEdit(route);
-  }
-
-  // Funktion för att toggla (bocka av/på)
-  const toggleStopCompletion = (stopId: number) => {
-    setCompletedStops(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(stopId)) {
-        newSet.delete(stopId);
-      } else {
-        newSet.add(stopId);
-      }
-      return newSet;
-    });
   };
 
-  if (loading) return <p style={{textAlign: 'center', color: '#666'}}>Laddar historik...</p>;
-  if (error) return <p style={{ color: "red", textAlign: 'center' }}>{error}</p>;
+  if (loading) return <p>Laddar...</p>;
+  if (error) return <p style={{ color: "red" }}>{error}</p>;
+  if (routes.length === 0) return <p>Inga sparade rutter än.</p>;
+
+  // Stilar för korten
+  const cardStyle = {
+      backgroundColor: isDarkMode ? '#1e1e1e' : 'white',
+      color: isDarkMode ? 'white' : 'black',
+      padding: '1rem',
+      borderRadius: '8px',
+      marginBottom: '1rem',
+      boxShadow: isDarkMode ? '0 2px 8px rgba(0,0,0,0.4)' : '0 2px 4px rgba(0,0,0,0.1)',
+      border: isDarkMode ? '1px solid #333' : '1px solid transparent'
+  };
 
   return (
-    <section>
-      {routes.length === 0 ? (
-        <p style={{textAlign: 'center', color: '#999', marginTop: '2rem'}}>Inga sparade rutter än.</p>
-      ) : (
-        <div style={{ display: "grid", gap: "1rem" }}>
-          {routes.map((route) => {
-            const isExpanded = expandedId === route.id;
-            
-            return (
-              <div
-                key={route.id}
-                onClick={() => toggleExpand(route.id)}
-                className="card"
+    <ul style={{ listStyle: "none", padding: 0 }}>
+      {routes.map((route) => (
+        <li
+          key={route.id}
+          style={cardStyle}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: '0.5rem' }}>
+            <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{route.name}</h3>
+            <span style={{ fontSize: "0.8rem", color: "#888" }}>
+              {new Date(route.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+          
+          <div style={{fontSize: '0.9rem', color: isDarkMode ? '#aaa' : '#666', marginBottom: '1rem'}}>
+             <p style={{margin: '4px 0'}}>🏁 Start: {route.startAddress}</p>
+             <p style={{margin: '4px 0'}}>🛑 Slut: {route.endAddress}</p>
+             <p style={{margin: '4px 0'}}>📦 Stopp: {route.stops.length} st</p>
+          </div>
+
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+            <button 
+                onClick={() => onStartDrive(route)} 
                 style={{
-                  textAlign: "left",
-                  border: isExpanded ? "2px solid #646cff" : "1px solid transparent",
-                  cursor: "pointer",
-                  transition: "all 0.2s"
+                    padding: '8px 16px', 
+                    background: '#2196f3', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '6px', 
+                    fontWeight: 'bold', 
+                    cursor: 'pointer'
                 }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <h3 style={{ margin: "0 0 0.25rem 0", fontSize: '1.1rem' }}>
-                      {route.name}
-                    </h3>
-                    <small style={{ color: "#666" }}>
-                      {new Date(route.createdAt).toLocaleDateString()} • {route.stops.length} stopp
-                    </small>
-                  </div>
-                  
-                  <div style={{display: 'flex', gap: '0.5rem'}}>
-                    {/* --- NY KNAPP: STARTA KÖRNING --- */}
-                    <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onStartDrive(route);
-                        }}
-                        style={{ background: "#2196f3", color: "white", padding: "8px", borderRadius: "50%", minWidth: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        title="Kör denna rutt"
-                    >
-                        🏎️
-                    </button>
-                    {/* -------------------------------- */}
-
-                    <button 
-                      onClick={(e) => handleEditClick(route, e)}
-                      style={{ background: "#e0f2f1", color: "#00695c", padding: "8px", borderRadius: "50%", minWidth: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      title="Redigera"
-                    >
-                      ✏️
-                    </button>
-
-                    <button 
-                      onClick={(e) => handleDelete(route.id, e)}
-                      style={{ background: "#ffebee", color: "#c62828", padding: "8px", borderRadius: "50%", minWidth: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      title="Ta bort"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-
-                {/* Start och Slut */}
-                <div style={{ marginTop: '0.75rem', fontSize: '0.9em', color: '#555', background: '#f9f9f9', padding: '8px', borderRadius: '8px' }}>
-                    {route.startAddress && <div style={{marginBottom: '4px'}}>🏁 <strong>Start:</strong> {route.startAddress}</div>}
-                    {route.endAddress && <div>🏁 <strong>Slut:</strong> {route.endAddress}</div>}
-                </div>
-
-                {/* EXPANDERAD DEL */}
-                {isExpanded && (
-                  <div style={{ marginTop: "1rem", borderTop: "1px solid #eee", paddingTop: "1rem", cursor: "default" }} onClick={e => e.stopPropagation()}>
-                    
-                    {route.description && <p style={{fontStyle: 'italic', color: '#666', marginBottom: '1rem'}}>{route.description}</p>}
-                    
-                    <ul style={{ paddingLeft: "0", listStyle: 'none', marginBottom: '1.5rem' }}>
-                      {route.stops.map((stop) => {
-                        const isCompleted = completedStops.has(stop.id);
-
-                        return (
-                          <li key={stop.id} style={{
-                              marginBottom: '0.75rem', 
-                              padding: '12px', 
-                              background: isCompleted ? '#f0f0f0' : '#fff', 
-                              border: isCompleted ? '1px solid #eee' : '1px solid #eee', 
-                              borderRadius: '8px',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              opacity: isCompleted ? 0.6 : 1,
-                              transition: 'all 0.2s'
-                          }}>
-                            
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                              
-                              <div 
-                                onClick={() => toggleStopCompletion(stop.id)}
-                                style={{
-                                  minWidth: '28px', height: '28px', borderRadius: '50%',
-                                  border: isCompleted ? '2px solid #4caf50' : '2px solid #ccc',
-                                  background: isCompleted ? '#4caf50' : 'transparent',
-                                  color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  cursor: 'pointer', fontSize: '1.1rem'
-                                }}
-                              >
-                                {isCompleted && '✓'}
-                              </div>
-
-                              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{
-                                    textDecoration: isCompleted ? 'line-through' : 'none',
-                                    fontWeight: '500', color: isCompleted ? '#888' : '#333', fontSize: '0.95em'
-                                }}>
-                                  {stop.address}
-                                </span>
-                                <span style={{fontSize: '0.8em', color: '#999'}}>
-                                   Stopp #{stop.orderIndex + 1}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <a
-                              href={buildGoogleMapsUrl(stop)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ 
-                                  fontSize: "1.4rem", textDecoration: 'none', padding: '8px',
-                                  filter: isCompleted ? 'grayscale(100%)' : 'none', opacity: isCompleted ? 0.5 : 1
-                              }}
-                              title="Navigera med Google Maps"
-                            >
-                              🗺️
-                            </a>
-                          </li>
-                        );
-                      })}
-                    </ul>
-
-                    <RouteMap 
-                        startAddress={route.startAddress || "Start"} 
-                        endAddress={route.endAddress || "Slut"}
-                        stops={route.stops.map(s => ({
-                            ...s,
-                            id: String(s.id),
-                            label: String(s.orderIndex),
-                            order: s.orderIndex
-                        }))}
-                        geometry={route.geometry}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
+            >
+                Starta
+            </button>
+            <button 
+                onClick={() => onEdit(route)}
+                style={{
+                    padding: '8px 16px', 
+                    background: isDarkMode ? '#333' : '#e0e0e0', 
+                    color: isDarkMode ? 'white' : 'black', 
+                    border: 'none', 
+                    borderRadius: '6px', 
+                    cursor: 'pointer'
+                }}
+            >
+                Redigera
+            </button>
+            <button 
+                onClick={() => handleDelete(route.id)}
+                style={{
+                    padding: '8px 16px', 
+                    background: '#ffebee', 
+                    color: '#c62828', 
+                    border: 'none', 
+                    borderRadius: '6px', 
+                    cursor: 'pointer',
+                    marginLeft: 'auto'
+                }}
+            >
+                Ta bort
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
