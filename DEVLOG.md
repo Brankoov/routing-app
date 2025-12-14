@@ -313,3 +313,13 @@ internal codes as part of the address. I iterated through several versions of pa
 Smart Parsing: I built a robust "cleaning engine" that strips out known noise 
 words (like "Fastighets", "nan", "z") before extracting 
 the address. I also added specific logic to handle common OCR errors, such as converting the letter 'l' to the number '1', and splitting compound street names that the scanner accidentally merged (e.g., "Warfvingesväg"). The system now captures about 90-95% of addresses correctly from a standard list.
+
+Admin Panel Overhaul & Better Auth Feedback
+
+This afternoon I focused on turning the admin experience into something that actually feels production-ready.
+
+I completely redesigned the Admin Panel UI, replacing the old list-based layout with clearly separated user cards and a structured overview. I added search and filtering (by username, role, and status) to make it practical to manage a growing user base. User actions like viewing routes, editing, and banning are now much clearer and easier to reason about.
+
+On the authentication side, I fixed an important UX issue where banned users were shown a generic “Login failed” message. The backend already correctly blocked banned accounts, but the frontend discarded the actual error message. I updated the auth client and login flow so the UI now displays meaningful server-side errors, such as explicitly telling the user that their account is banned.
+
+Overall, this update significantly improves both admin usability and system feedback, making the application feel more robust and professional.

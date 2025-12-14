@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -38,8 +37,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
             try {
-                // Här skulle man kunna ha en validateToken-metod i JwtUtil som extra check,
-                // men vi extraherar username direkt. Om token är trasig kastar denna ett exception.
                 username = jwtUtil.extractUsername(jwt);
             } catch (Exception e) {
                 // Token ogiltig eller utgången
@@ -51,7 +48,15 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
-            // (Här skulle man egentligen validera token mot userDetails också, men vi litar på signaturen för nu)
+            // ✅ NYTT (minimalt): blocka bannade användare även om de har en token
+            if (!userDetails.isEnabled()) {
+                SecurityContextHolder.clearContext();
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType("application/json");
+                response.setCharacterEncoding("UTF-8");
+                response.getWriter().write("{\"error\":\"Du är bannad 🚫\"}");
+                return;
+            }
 
             // 3. Skapa autentiseringsobjektet
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(

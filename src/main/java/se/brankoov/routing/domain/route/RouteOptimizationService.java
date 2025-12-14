@@ -91,7 +91,7 @@ public class RouteOptimizationService {
 
         // --- PATCHA MATRISEN ---
         // OBS: Utkommenterad för stabilitet/cleaner map (aktivera om du vill testa "gå över gatan" igen)
-         patchMatrixWithWalkingPhysics(durations, stopsWithCoords, startPos, endPos);
+        // patchMatrixWithWalkingPhysics(durations, stopsWithCoords, startPos, endPos);
         // -----------------------
 
         // 6. Optimera (NN + 2-Opt + Simulated Annealing Multi-Start)
@@ -300,32 +300,58 @@ public class RouteOptimizationService {
         return bestRoute;
     }
 
+    // --- SAVE ROUTE (UPPDATERAD FÖR ATT HANTERA REDIGERING OCH SÄKERHET) ---
     @Transactional
     public RouteEntity saveRoute(SaveRouteRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         UserEntity currentUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        RouteEntity entity = new RouteEntity(
-                request.name(),
-                request.description(),
-                request.startAddress(),
-                request.endAddress(),
-                request.geometry(),
-                request.totalDuration(),
-                request.averageStopDuration()
-        );
+        RouteEntity route;
 
-        entity.setOwner(currentUser);
+        // Om request har ett ID så uppdaterar vi befintlig rutt
+        if (request.id() != null) {
+            route = routeRepository.findById(request.id())
+                    .orElseThrow(() -> new RuntimeException("Route not found with id: " + request.id()));
 
-        request.stops().forEach(s -> {
-            RouteStopEntity stopEntity = new RouteStopEntity(
-                    s.label(), s.address(), s.latitude(), s.longitude(), s.order()
-            );
-            entity.addStop(stopEntity);
-        });
+            // SÄKERHETSKOLL:
+            // Är den inloggade personen ägaren? Eller en ADMIN?
+            boolean isOwner = route.getOwner().getUsername().equals(username);
+            boolean isAdmin = "ADMIN".equals(currentUser.getRole());
 
-        return routeRepository.save(entity);
+            if (!isOwner && !isAdmin) {
+                throw new RuntimeException("Du har inte behörighet att redigera denna rutt.");
+            }
+            // OBS: Vi sätter INTE owner här. Vi behåller den gamla ägaren.
+
+        } else {
+            // Skapa ny rutt om inget ID finns
+            route = new RouteEntity();
+            route.setOwner(currentUser);
+        }
+
+        // Uppdatera fälten (gemensamt för både nytt och uppdatering)
+        route.setName(request.name());
+        route.setDescription(request.description());
+        route.setStartAddress(request.startAddress());
+        route.setEndAddress(request.endAddress());
+        route.setGeometry(request.geometry());
+        route.setTotalDuration(request.totalDuration());
+        route.setAverageStopDuration(request.averageStopDuration());
+
+        // Rensa gamla stopp och lägg till de nya
+        route.getStops().clear();
+        if (request.stops() != null) {
+            request.stops().forEach(s -> {
+                RouteStopEntity stopEntity = new RouteStopEntity(
+                        s.label(), s.address(), s.latitude(), s.longitude(), s.order()
+                );
+                // addStop-hjälpmetoden i RouteEntity sätter relationen korrekt
+                route.addStop(stopEntity);
+            });
+        }
+
+        return routeRepository.save(route);
     }
 
     public List<RouteEntity> getMyRoutes() {
