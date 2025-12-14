@@ -300,3 +300,16 @@ Independent Map Theme: I separated the map's theme from the app's theme. This gi
 Visual Improvements: I overhauled the input fields and cards to look good in both light and dark modes. I also fixed a layout bug on mobile where the bottom navigation bar buttons were getting cut off by adding proper spacing and safe-area padding.
 
 Technical Fixes: I unified the API naming conventions (renamed fetchAllRoutes to getSavedRoutes) to stop TypeScript from complaining and ensured the body background color changes dynamically to prevent white flashes when scrolling.
+
+## 2025-12-14 (OCR Update)
+Optical Character Recognition (OCR): I implemented a feature that allows drivers to scan paper 
+delivery lists directly into the app using their mobile camera. 
+instead of typing everything manually. I chose tesseract.js to handle the image processing entirely on the client-side, keeping it fast and free without external API costs.
+
+The "Noise" Battle: The biggest challenge was making sense of the raw text 
+from the scanner. The OCR often reads company names ("Brf", "AB") or 
+internal codes as part of the address. I iterated through several versions of parsing logic, moving from a strict "whitelist" approach to a more flexible "blacklist" strategy.
+
+Smart Parsing: I built a robust "cleaning engine" that strips out known noise 
+words (like "Fastighets", "nan", "z") before extracting 
+the address. I also added specific logic to handle common OCR errors, such as converting the letter 'l' to the number '1', and splitting compound street names that the scanner accidentally merged (e.g., "Warfvingesväg"). The system now captures about 90-95% of addresses correctly from a standard list.
