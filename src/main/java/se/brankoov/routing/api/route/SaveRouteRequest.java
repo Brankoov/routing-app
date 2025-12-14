@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotEmpty;
 import java.util.List;
 
 public record SaveRouteRequest(
+        Long id,
         @NotBlank(message = "Name is required") String name,
         String description,
         String startAddress,

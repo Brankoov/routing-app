@@ -21,6 +21,7 @@ export interface RouteOptimizationResponse {
 }
 
 export interface SaveRouteRequest {
+  id?: number;
   name: string;
   description?: string;
   startAddress?: string;
@@ -41,6 +42,8 @@ export interface SavedRoute {
   geometry?: string;
   totalDuration?: number;
   averageStopDuration?: number;
+  ownerUsername: string; // <--- NYTT: Fixar felet i RoutePlanner
+
   stops: {
     id: number;
     address: string;
@@ -48,6 +51,15 @@ export interface SavedRoute {
     longitude: number;
     orderIndex: number;
   }[];
+}
+
+// --- NY TYP FÖR ADMIN ---
+export interface User {
+  id: number;
+  username: string;
+  role: string;
+  enabled: boolean;
+  createdAt?: string;
 }
 
 // --- HJÄLPFUNKTIONER ---
@@ -112,7 +124,6 @@ export async function saveRoute(data: SaveRouteRequest): Promise<SavedRoute> {
   return response.json() as Promise<SavedRoute>;
 }
 
-// NAMNÄNDRING: fetchAllRoutes -> getSavedRoutes (för att matcha SavedRoutesList)
 export async function getSavedRoutes(): Promise<SavedRoute[]> {
   const response = await fetch(`${API_BASE_URL}/api/routes`, {
     method: 'GET',
@@ -129,7 +140,16 @@ export async function getSavedRoutes(): Promise<SavedRoute[]> {
     throw new Error(`Failed to fetch routes. Status: ${response.status}`);
   }
 
-  return response.json() as Promise<SavedRoute[]>;
+  const routes = await response.json() as SavedRoute[];
+  
+  // NYTT: Sortera så att den nyaste (högsta ID:t eller senaste createdAt) kommer först.
+  return routes.sort((a, b) => {
+      // Jämför ID:t direkt för enkel och pålitlig sortering (högst ID = nyast)
+      return b.id - a.id; 
+      
+      // ALTERNATIVT (Om du vill vara säker på tid):
+      // return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 }
 
 export async function deleteRoute(id: number): Promise<void> {
@@ -141,3 +161,44 @@ export async function deleteRoute(id: number): Promise<void> {
     throw new Error(`Failed to delete route. Status: ${response.status}`);
   }
 }
+
+// --- NYA FUNKTIONER FÖR ADMIN ---
+
+export const getAllUsers = async (): Promise<User[]> => {
+  const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Kunde inte hämta användare.");
+  }
+  return response.json();
+};
+
+export const toggleUserBan = async (userId: number): Promise<string> => {
+  const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/ban`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Kunde inte ändra status.");
+  }
+  return await response.text();
+};
+
+// Hämta en specifik användares rutter (ADMIN ONLY)
+export const getUserRoutesAdmin = async (username: string): Promise<SavedRoute[]> => {
+  const token = localStorage.getItem("jwt_token");
+  const response = await fetch(`${API_BASE_URL}/api/admin/users/${username}/routes`, {
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Kunde inte hämta användarens rutter.");
+  }
+  return response.json();
+};

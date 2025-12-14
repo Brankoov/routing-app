@@ -1,4 +1,5 @@
 package se.brankoov.routing.config;
+
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import se.brankoov.routing.security.JwtRequestFilter;
 import org.springframework.context.annotation.Bean;
@@ -17,7 +18,7 @@ import java.util.List;
 
 @Configuration
 public class SecurityConfig {
-    private final JwtRequestFilter jwtRequestFilter; // <--- Injecta filtret
+    private final JwtRequestFilter jwtRequestFilter;
 
     public SecurityConfig(JwtRequestFilter jwtRequestFilter) {
         this.jwtRequestFilter = jwtRequestFilter;
@@ -29,15 +30,20 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/health").permitAll() // Öppet
-                        .requestMatchers("/api/geocode/**").permitAll() // Låt geocoding vara öppet för nu (eller lås om du vill)
+                        // 1. Öppna endpoints
+                        .requestMatchers("/api/auth/**", "/api/health").permitAll()
+                        .requestMatchers("/api/geocode/**").permitAll()
 
-                        // LÅS ALLA RUTT-ANROP:
+                        // 2. ADMIN-endpoints (NYTT HÄR)
+                        // Kräver att användaren har rollen "ADMIN" (i DB sparas det som "ADMIN", Spring letar efter "ROLE_ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // 3. Skyddade endpoints för inloggade
                         .requestMatchers("/api/routes/**").authenticated()
 
-                        .anyRequest().authenticated() // Allt annat låst som standard
+                        // 4. Allt annat
+                        .anyRequest().authenticated()
                 )
-                // LÄGG TILL FILTRET HÄR:
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -46,35 +52,27 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-
-        // 🔹 Här lägger vi till vilka origins som får anropa ditt API
         config.setAllowedOrigins(List.of(
-                "http://localhost:5173",            // Localhost
-                "https://routing-app.vercel.app",   // Huvudlänken
+                "http://localhost:5173",
+                "https://routing-app.vercel.app",
                 "https://routing-app-green.vercel.app"
         ));
-
-        // Vilka HTTP-metoder vi släpper igenom
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-
-        // Vilka headers som är ok
         config.setAllowedHeaders(List.of("Content-Type", "Authorization"));
-
-        // Tillåt credentials om du senare kör cookies/JWT i headers
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Gäller för alla endpoints
         source.registerCorsConfiguration("/**", config);
         return source;
     }
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 }
-

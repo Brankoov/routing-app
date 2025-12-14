@@ -5,6 +5,7 @@ import { SavedRoutesList } from './components/SavedRoutesList';
 import { AuthPage } from './components/AuthPage';
 import { CurrentUser } from './components/CurrentUser';
 import { DriveView } from './components/DriveView';
+import AdminPanel from './components/AdminPanel';
 import { type SavedRoute } from './api/routeClient';
 
 const ICON_TRUCK = "🚛";
@@ -13,17 +14,15 @@ const ICON_PIN = "📍";
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [routeToEdit, setRouteToEdit] = useState<SavedRoute | null>(null);
-  const [activeTab, setActiveTab] = useState<'plan' | 'history' | 'drive'>('plan');
+  
+  const [activeTab, setActiveTab] = useState<'plan' | 'history' | 'drive' | 'admin'>('plan');
   
   // DARK MODE STATE
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // --- NY KOD HÄR: Synka bakgrundsfärgen med temat ---
   useEffect(() => {
-    // Om dark mode: mörkgrå (#121212), annars: ljusgrå (#e8eaed)
     document.body.style.backgroundColor = isDarkMode ? '#121212' : '#e8eaed';
   }, [isDarkMode]);
-  // ---------------------------------------------------
 
   useEffect(() => {
     const token = localStorage.getItem("jwt_token");
@@ -33,6 +32,24 @@ function App() {
         setActiveTab('drive');
     }
   }, []);
+
+  // --- HELPER FÖR ATT KOLLA ADMIN-ROLL ---
+  const isAdmin = () => {
+    const token = localStorage.getItem("jwt_token");
+    if (!token) return false;
+    try {
+      // Avkoda tokenet (delen mellan punkterna)
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      
+      // Debug: Se vad som faktiskt finns i tokenet i webbläsarens konsol
+      // console.log("Token Payload:", payload); 
+
+      // Kollar om rollen är ADMIN
+      return payload.role === 'ADMIN' || payload.roles?.includes('ADMIN') || payload.scope?.includes('ROLE_ADMIN');
+    } catch (e) {
+      return false;
+    }
+  };
 
   const handleEditRoute = (route: SavedRoute) => {
     setRouteToEdit(route);
@@ -64,7 +81,6 @@ function App() {
   return (
     <div className="app-container" style={appStyles}>
       
-      {/* HÄR ÄR FIXEN: Vi skickar med toggleDarkMode */}
       {isLoggedIn && (
         <CurrentUser 
             isDarkMode={isDarkMode} 
@@ -106,6 +122,13 @@ function App() {
              />
           )}
 
+          {/* --- ADMIN PANEL VY --- */}
+            {activeTab === 'admin' && isAdmin() && (
+              <div>
+                <AdminPanel onEditRoute={handleEditRoute} /> {/* <--- SKICKA MED FUNKTIONEN HÄR */}
+              </div>
+            )}
+
           <nav className="bottom-nav" style={navStyles}>
             <button 
                 className={`nav-item ${activeTab === 'plan' ? 'active' : ''}`} 
@@ -130,6 +153,17 @@ function App() {
             >
               {ICON_PIN} <span style={{fontSize:'0.6em', display:'block'}}>Historik</span>
             </button>
+
+            {/* --- ADMIN KNAPP --- */}
+            {isAdmin() && (
+              <button 
+                  className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`} 
+                  onClick={() => setActiveTab('admin')}
+                  style={{ color: activeTab === 'admin' ? '#646cff' : (isDarkMode ? '#aaa' : '#666') }}
+              >
+                🛡️ <span style={{fontSize:'0.6em', display:'block'}}>Admin</span>
+              </button>
+            )}
           </nav>
 
         </div>

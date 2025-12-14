@@ -6,7 +6,7 @@ export interface RegisterRequest {
 }
 
 export async function registerUser(data: RegisterRequest): Promise<string> {
- const response = await fetch(`${API_BASE_URL}/api/auth/register`, { 
+  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -20,6 +20,7 @@ export async function registerUser(data: RegisterRequest): Promise<string> {
   const result = await response.json();
   return result.message;
 }
+
 export interface LoginRequest {
   username: string;
   password: string;
@@ -36,10 +37,12 @@ export async function loginUser(data: LoginRequest): Promise<string> {
     body: JSON.stringify(data),
   });
 
+  // ✅ MINIMAL FIX: läs backendens error-message om den finns (t.ex. "Du är bannad 🚫")
   if (!response.ok) {
-    throw new Error(`Login failed: ${response.status}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Login failed: ${response.status}`);
   }
 
-  const result = await response.json() as LoginResponse;
+  const result = (await response.json()) as LoginResponse;
   return result.token;
 }
