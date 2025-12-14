@@ -323,3 +323,5 @@ I completely redesigned the Admin Panel UI, replacing the old list-based layout 
 On the authentication side, I fixed an important UX issue where banned users were shown a generic “Login failed” message. The backend already correctly blocked banned accounts, but the frontend discarded the actual error message. I updated the auth client and login flow so the UI now displays meaningful server-side errors, such as explicitly telling the user that their account is banned.
 
 Overall, this update significantly improves both admin usability and system feedback, making the application feel more robust and professional.
+## 2025-12-15
+Implemented Rate Limiting in the backend to protect the API against spam and abuse. Also fixed the Admin Panel UI to ensure dark mode has correct contrast and is consistent with the rest of the app.

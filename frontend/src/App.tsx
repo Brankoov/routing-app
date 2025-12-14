@@ -125,7 +125,7 @@ function App() {
           {/* --- ADMIN PANEL VY --- */}
             {activeTab === 'admin' && isAdmin() && (
               <div>
-                <AdminPanel onEditRoute={handleEditRoute} /> {/* <--- SKICKA MED FUNKTIONEN HÄR */}
+               <AdminPanel onEditRoute={handleEditRoute} isDarkMode={isDarkMode} />
               </div>
             )}
 

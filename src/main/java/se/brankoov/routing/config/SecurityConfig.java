@@ -2,6 +2,7 @@ package se.brankoov.routing.config;
 
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import se.brankoov.routing.security.JwtRequestFilter;
+import se.brankoov.routing.security.RateLimitingFilter; // NY IMPORT
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,9 +20,12 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
     private final JwtRequestFilter jwtRequestFilter;
+    private final RateLimitingFilter rateLimitingFilter; // NYTT FÄLT
 
-    public SecurityConfig(JwtRequestFilter jwtRequestFilter) {
+    // UPPDATERAD KONSTRUKTOR
+    public SecurityConfig(JwtRequestFilter jwtRequestFilter, RateLimitingFilter rateLimitingFilter) {
         this.jwtRequestFilter = jwtRequestFilter;
+        this.rateLimitingFilter = rateLimitingFilter; // Initialiserar det nya filtret
     }
 
     @Bean
@@ -29,13 +33,14 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                // LÄGG TILL RATE LIMITING FILTER FÖRE ALLT ANNAT
+                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         // 1. Öppna endpoints
                         .requestMatchers("/api/auth/**", "/api/health").permitAll()
                         .requestMatchers("/api/geocode/**").permitAll()
 
-                        // 2. ADMIN-endpoints (NYTT HÄR)
-                        // Kräver att användaren har rollen "ADMIN" (i DB sparas det som "ADMIN", Spring letar efter "ROLE_ADMIN")
+                        // 2. ADMIN-endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         // 3. Skyddade endpoints för inloggade
