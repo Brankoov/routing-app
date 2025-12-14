@@ -1,20 +1,20 @@
 package se.brankoov.routing.config;
 
-import org.springframework.beans.factory.annotation.Value; // <--- Importera denna
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.core.Ordered; // NY IMPORT
 import se.brankoov.routing.domain.auth.UserEntity;
 import se.brankoov.routing.domain.auth.UserRepository;
 
 @Component
-public class AdminInitializer implements CommandLineRunner {
+// IMPLEMENTERAR Ordered för att styra körordningen
+public class AdminInitializer implements CommandLineRunner, Ordered {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // Här hämtar vi lösenordet från inställningarna.
-    // Om inget finns satt, används "defaultAdmin123" som reserv.
     @Value("${ADMIN_PASSWORD:defaultAdmin123}")
     private String adminPassword;
 
@@ -25,10 +25,10 @@ public class AdminInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        // Logiken är oförändrad, men den körs nu vid rätt tidpunkt.
         if (userRepository.findByUsername("gud").isEmpty()) {
             UserEntity admin = new UserEntity();
             admin.setUsername("gud");
-            // Använd variabeln istället för hårdkodad text
             admin.setPassword(passwordEncoder.encode(adminPassword));
             admin.setRole("ADMIN");
             admin.setEnabled(true);
@@ -36,5 +36,11 @@ public class AdminInitializer implements CommandLineRunner {
             userRepository.save(admin);
             System.out.println("👑 ADMIN-konto skapat med lösenord från config.");
         }
+    }
+
+    @Override
+    public int getOrder() {
+        // Tvingar denna att köras sent i Spring Boot-processen (lågt prioritet)
+        return 100;
     }
 }

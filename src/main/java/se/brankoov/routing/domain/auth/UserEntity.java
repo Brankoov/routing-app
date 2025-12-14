@@ -1,8 +1,7 @@
 package se.brankoov.routing.domain.auth;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
-import java.time.LocalDateTime;
+import java.time.Instant; // ÄNDRAT: Bättre för databas tidsstämplar
 
 @Entity
 @Table(name = "users")
@@ -18,15 +17,16 @@ public class UserEntity {
     @Column(nullable = false)
     private String password;
 
+    // INGEN ÄNDRING HÄR
     private String role = "USER"; // "USER" eller "ADMIN"
 
-    // NYTT: Håller koll på om användaren är bannad (false = bannad)
+    // ÄNDRAT: Tvinga NOT NULL och default i DB för att matcha Java-fältet
+    @Column(nullable = false)
     private boolean enabled = true;
 
-    // NYTT: Sparar automatiskt datum och tid vid registrering
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
+    // ÄNDRAT: Tvinga NOT NULL och sätt standardvärde (CURRENT_TIMESTAMP) på databasnivå
+    @Column(nullable = false, updatable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
+    private Instant createdAt = Instant.now();
 
     public UserEntity() {}
 
@@ -50,5 +50,6 @@ public class UserEntity {
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    // ÄNDRAT: Returnerar Instant
+    public Instant getCreatedAt() { return createdAt; }
 }
