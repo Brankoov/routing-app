@@ -12,18 +12,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 @Component
-@Order(1) // Se till att detta körs tidigt i filterkedjan
+@Order(1)
 public class RateLimitingFilter implements Filter {
 
-    // Karta för att lagra RateLimiter-instanser per IP-adress
-    // En RateLimiter är trådsäker och styr tilldelningen av "tillstånd" (tokens)
     private final ConcurrentMap<String, RateLimiter> limiters = new ConcurrentHashMap<>();
 
-    // DEFINIERA GRÄNSEN: Max 10 förfrågningar per sekund per IP
-    private static final double REQUESTS_PER_SECOND = 10.0;
+    // ÄNDRAD: 100.0 anrop/sekund.
+    // Detta är "Safe mode". Det tillåter frontend att spamma sökförslag utan att krascha,
+    // men stoppar fortfarande riktiga DoS-attacker.
+    private static final double REQUESTS_PER_SECOND = 100.0;
 
-    // DEFINIERA GRÄNSEN FÖR OPENROUTE SERVICE (dyrare anrop)
-    // Tillåter endast 1 anrop var 3:e sekund till /optimize
+    // BEHÅLL: Max 1 optimering var 3:e sekund (för att spara din ORS-kvot)
     private static final double OPTIMIZE_RPS = 0.33;
 
     @Override
@@ -33,48 +32,52 @@ public class RateLimitingFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-        String ip = getClientIP(httpRequest);
         String path = httpRequest.getRequestURI();
 
-        // --- 1. Global Rate Limit (för alla anrop) ---
+        // 1. UNDANTAG: Släpp alltid igenom inloggning och hälso-checkar
+        if (path.startsWith("/api/auth") || path.startsWith("/api/health")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        String ip = getClientIP(httpRequest);
+
+        // 2. Global Rate Limit (Nu 100 anrop/sek per IP)
         RateLimiter globalLimiter = limiters.computeIfAbsent(ip + ":global",
                 k -> RateLimiter.create(REQUESTS_PER_SECOND)
         );
 
         if (!globalLimiter.tryAcquire()) {
-            // Förfrågan avvisas
-            httpResponse.setStatus(429); // 429 Too Many Requests
-            httpResponse.getWriter().write("{\"message\": \"För många förfrågningar. Försök igen om en sekund.\"}");
+            httpResponse.setStatus(429);
+            httpResponse.setContentType("application/json");
+            httpResponse.setCharacterEncoding("UTF-8");
+            httpResponse.getWriter().write("{\"message\": \"För många anrop! 🚦\"}");
             return;
         }
 
-        // --- 2. Specifik Rate Limit för optimering (dyra API-anrop) ---
+        // 3. Specifik Rate Limit för optimering (Dyra anrop)
         if (path.contains("/api/routes/optimize")) {
             RateLimiter optimizeLimiter = limiters.computeIfAbsent(ip + ":optimize",
                     k -> RateLimiter.create(OPTIMIZE_RPS)
             );
 
             if (!optimizeLimiter.tryAcquire()) {
-                // Förfrågan avvisas
                 httpResponse.setStatus(429);
-                httpResponse.getWriter().write("{\"message\": \"Ruttoptimering är begränsad till en gång var 3:e sekund.\"}");
+                httpResponse.setContentType("application/json");
+                httpResponse.setCharacterEncoding("UTF-8");
+                httpResponse.getWriter().write("{\"message\": \"Vänta 3 sekunder mellan optimeringar.\"}");
                 return;
             }
         }
 
-        // Om gränsen inte överskreds, fortsätt till nästa filter/controller
         chain.doFilter(request, response);
     }
 
-    // Enkel metod för att hämta klientens IP-adress
     private String getClientIP(HttpServletRequest request) {
         String xForwardedForHeader = request.getHeader("X-Forwarded-For");
         if (xForwardedForHeader != null && !xForwardedForHeader.isEmpty()) {
-            // Render/Load Balancer skickar ofta en lista. Vi tar den första.
             return xForwardedForHeader.split(",")[0].trim();
         }
         return request.getRemoteAddr();
     }
-
-    // ... (init och destroy kan vara tomma i detta fall)
 }

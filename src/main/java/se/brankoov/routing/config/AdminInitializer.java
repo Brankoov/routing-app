@@ -26,9 +26,9 @@ public class AdminInitializer implements CommandLineRunner, Ordered {
     @Override
     public void run(String... args) throws Exception {
         // Logiken är oförändrad, men den körs nu vid rätt tidpunkt.
-        if (userRepository.findByUsername("gud").isEmpty()) {
+        if (userRepository.findByUsername("Gud").isEmpty()) {
             UserEntity admin = new UserEntity();
-            admin.setUsername("gud");
+            admin.setUsername("Gud");
             admin.setPassword(passwordEncoder.encode(adminPassword));
             admin.setRole("ADMIN");
             admin.setEnabled(true);
