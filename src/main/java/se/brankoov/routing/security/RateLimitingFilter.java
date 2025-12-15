@@ -11,8 +11,8 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-@Component
-@Order(1)
+//@Component
+//@Order(1)
 public class RateLimitingFilter implements Filter {
 
     private final ConcurrentMap<String, RateLimiter> limiters = new ConcurrentHashMap<>();

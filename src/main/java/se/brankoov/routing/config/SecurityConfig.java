@@ -1,8 +1,5 @@
 package se.brankoov.routing.config;
 
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import se.brankoov.routing.security.JwtRequestFilter;
-import se.brankoov.routing.security.RateLimitingFilter; // NY IMPORT
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -11,21 +8,22 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import se.brankoov.routing.security.JwtRequestFilter;
 
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
-    private final JwtRequestFilter jwtRequestFilter;
-    private final RateLimitingFilter rateLimitingFilter; // NYTT FÄLT
 
-    // UPPDATERAD KONSTRUKTOR
-    public SecurityConfig(JwtRequestFilter jwtRequestFilter, RateLimitingFilter rateLimitingFilter) {
+    private final JwtRequestFilter jwtRequestFilter;
+
+    // Fixad konstruktor: Tar inte längre emot RateLimitingFilter
+    public SecurityConfig(JwtRequestFilter jwtRequestFilter) {
         this.jwtRequestFilter = jwtRequestFilter;
-        this.rateLimitingFilter = rateLimitingFilter; // Initialiserar det nya filtret
     }
 
     @Bean
@@ -33,8 +31,7 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-                // LÄGG TILL RATE LIMITING FILTER FÖRE ALLT ANNAT
-                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                // Här fanns RateLimitingFilter tidigare – nu är det borta.
                 .authorizeHttpRequests(auth -> auth
                         // 1. Öppna endpoints
                         .requestMatchers("/api/auth/**", "/api/health").permitAll()

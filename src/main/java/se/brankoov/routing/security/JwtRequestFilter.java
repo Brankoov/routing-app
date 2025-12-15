@@ -33,42 +33,50 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         String username = null;
         String jwt = null;
 
-        // 1. Hämta token från headern ("Bearer eyJhb...")
+        System.out.println("--- JwtRequestFilter Start ---");
+        System.out.println("Request URL: " + request.getRequestURI());
+
+        // 1. Hämta token från headern
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
+            System.out.println("Token hittad i header (första 10 tecken): " + (jwt.length() > 10 ? jwt.substring(0, 10) + "..." : jwt));
             try {
                 username = jwtUtil.extractUsername(jwt);
+                System.out.println("Lyckades extrahera användarnamn: " + username);
             } catch (Exception e) {
-                // Token ogiltig eller utgången
-                System.out.println("JWT Token invalid: " + e.getMessage());
+                System.out.println("❌ JWT Token invalid/expired: " + e.getMessage());
+                // e.printStackTrace(); // Avkommentera om du vill se hela felet
             }
+        } else {
+            System.out.println("⚠️ Ingen 'Bearer' token hittades i Authorization-headern.");
         }
 
-        // 2. Om vi hittade ett namn, och ingen är inloggad än i denna request...
+        // 2. Validera och sätt kontext
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+            try {
+                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+                System.out.println("Användare hittad i DB: " + userDetails.getUsername() + ", Authorities: " + userDetails.getAuthorities());
 
-            // ✅ NYTT (minimalt): blocka bannade användare även om de har en token
-            if (!userDetails.isEnabled()) {
-                SecurityContextHolder.clearContext();
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.setContentType("application/json");
-                response.setCharacterEncoding("UTF-8");
-                response.getWriter().write("{\"error\":\"Du är bannad 🚫\"}");
-                return;
+                if (!userDetails.isEnabled()) {
+                    System.out.println("⛔ Användaren är inaktiverad/bannad!");
+                    SecurityContextHolder.clearContext();
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.getWriter().write("{\"error\":\"Du är bannad 🚫\"}");
+                    return;
+                }
+
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+                System.out.println("✅ Autentisering lyckades! Användare inloggad.");
+
+            } catch (Exception e) {
+                System.out.println("❌ Kunde inte ladda användare från DB: " + e.getMessage());
             }
-
-            // 3. Skapa autentiseringsobjektet
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-            // 4. Sätt användaren som "Inloggad" i Spring Securitys kontext
-            SecurityContextHolder.getContext().setAuthentication(authToken);
         }
 
-        // 5. Fortsätt till nästa filter (släpp igenom requesten)
+        System.out.println("--- JwtRequestFilter Slut (fortsätter chain) ---");
         chain.doFilter(request, response);
     }
 }
