@@ -17,13 +17,11 @@ public class RateLimitingFilter implements Filter {
 
     private final ConcurrentMap<String, RateLimiter> limiters = new ConcurrentHashMap<>();
 
-    // ÄNDRAD: 100.0 anrop/sekund.
-    // Detta är "Safe mode". Det tillåter frontend att spamma sökförslag utan att krascha,
-    // men stoppar fortfarande riktiga DoS-attacker.
+    // GLOBAL GRÄNS: 100 anrop/sekund (hanterar snabba kart-laddningar)
     private static final double REQUESTS_PER_SECOND = 100.0;
 
-    // BEHÅLL: Max 1 optimering var 3:e sekund (för att spara din ORS-kvot)
-    private static final double OPTIMIZE_RPS = 0.33;
+    // OPTIMERINGS-GRÄNS: Höjd till 2.0 anrop/sekund (tillåter dubbelklick/omförsök)
+    private static final double OPTIMIZE_RPS = 2.0;
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -34,7 +32,14 @@ public class RateLimitingFilter implements Filter {
 
         String path = httpRequest.getRequestURI();
 
-        // 1. UNDANTAG: Släpp alltid igenom inloggning och hälso-checkar
+        // 1. VIKTIGT: Släpp alltid igenom "OPTIONS" (CORS pre-flight checks)
+        // Detta var troligen problemet! Webbläsaren kollar "får jag anropa?" och blev blockad.
+        if (httpRequest.getMethod().equalsIgnoreCase("OPTIONS")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        // 2. Släpp alltid igenom Auth och Health
         if (path.startsWith("/api/auth") || path.startsWith("/api/health")) {
             chain.doFilter(request, response);
             return;
@@ -42,35 +47,36 @@ public class RateLimitingFilter implements Filter {
 
         String ip = getClientIP(httpRequest);
 
-        // 2. Global Rate Limit (Nu 100 anrop/sek per IP)
+        // 3. Global Rate Limit
         RateLimiter globalLimiter = limiters.computeIfAbsent(ip + ":global",
                 k -> RateLimiter.create(REQUESTS_PER_SECOND)
         );
 
         if (!globalLimiter.tryAcquire()) {
-            httpResponse.setStatus(429);
-            httpResponse.setContentType("application/json");
-            httpResponse.setCharacterEncoding("UTF-8");
-            httpResponse.getWriter().write("{\"message\": \"För många anrop! 🚦\"}");
+            send429(httpResponse, "Systemet är upptaget. För många anrop.");
             return;
         }
 
-        // 3. Specifik Rate Limit för optimering (Dyra anrop)
+        // 4. Specifik Rate Limit för optimering
         if (path.contains("/api/routes/optimize")) {
             RateLimiter optimizeLimiter = limiters.computeIfAbsent(ip + ":optimize",
                     k -> RateLimiter.create(OPTIMIZE_RPS)
             );
 
             if (!optimizeLimiter.tryAcquire()) {
-                httpResponse.setStatus(429);
-                httpResponse.setContentType("application/json");
-                httpResponse.setCharacterEncoding("UTF-8");
-                httpResponse.getWriter().write("{\"message\": \"Vänta 3 sekunder mellan optimeringar.\"}");
+                send429(httpResponse, "Vänta lite innan du optimerar igen.");
                 return;
             }
         }
 
         chain.doFilter(request, response);
+    }
+
+    private void send429(HttpServletResponse response, String msg) throws IOException {
+        response.setStatus(429);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write("{\"message\": \"" + msg + "\"}");
     }
 
     private String getClientIP(HttpServletRequest request) {
