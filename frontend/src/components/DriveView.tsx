@@ -3,12 +3,18 @@ import { type SavedRoute } from "../api/routeClient";
 import RouteMap from "./RouteMap";
 
 function buildGoogleMapsUrl(stop: { latitude: number | null; longitude: number | null; address: string }) {
-  const baseUrl = "http://googleusercontent.com/maps.google.com/maps?daddr=";
+  // Använd den officiella API-länken för vägbeskrivning
+  const baseUrl = "https://www.google.com/maps/dir/?api=1&destination=";
+  const driveMode = "&travelmode=driving";
+
+  // 1. Om vi har exakta koordinater, använd dem (säkraste sättet att hamna rätt)
   if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
-    return `${baseUrl}${stop.latitude},${stop.longitude}&dirflg=d`;
+    return `${baseUrl}${stop.latitude},${stop.longitude}${driveMode}`;
   }
+
+  // 2. Annars, använd adressen (URL-kodad för att hantera mellanslag och åäö)
   const q = encodeURIComponent(stop.address);
-  return `${baseUrl}${q}&dirflg=d`;
+  return `${baseUrl}${q}${driveMode}`;
 }
 
 function formatDuration(seconds: number): string {
