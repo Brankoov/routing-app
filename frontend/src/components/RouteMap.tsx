@@ -105,7 +105,11 @@ function createNumberedIcon(label: string | number, isCompleted: boolean = false
 }
 
 function getGoogleMapsLink(lat: number, lng: number) {
-    return `http://googleusercontent.com/maps.google.com/maps?daddr=${lat},${lng}&dirflg=d`;
+  // Använder Googles universella format:
+  // api=1: Aktiverar det nya formatet
+  // destination: Vart vi ska (koordinaterna)
+  // travelmode=driving: Tvingar bil-läge
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
 }
 
 // --- KOMPONENTER ---

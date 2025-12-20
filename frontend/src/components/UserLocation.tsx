@@ -8,18 +8,18 @@ export function UserLocation() {
   const [heading, setHeading] = useState<number | null>(null);
   
   const [tracking, setTracking] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false); // <--- NYTT: Håller koll på om vi ska följa efter
+  const [isFollowing, setIsFollowing] = useState(false);
 
   const map = useMap();
-  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  // Använder 'any' för att undvika TS-fel om webbläsaren saknar WakeLock-typer
+  const wakeLockRef = useRef<any>(null);
 
-  // --- NYTT: Lyssna på om användaren drar i kartan ---
+  // Lyssna på om användaren drar i kartan -> Sluta följa automatiskt
   useMapEvents({
     dragstart: () => {
-      // Om användaren börjar dra i kartan, sluta följa automatiskt
       if (isFollowing) {
         setIsFollowing(false);
-        console.log("Användaren drog i kartan -> Slutar följa");
+        // console.log("Användaren drog i kartan -> Slutar följa");
       }
     }
   });
@@ -32,8 +32,11 @@ export function UserLocation() {
         font-size: 30px; 
         line-height: 1; 
         text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        transform: rotate(${angle}deg) scaleX(-1);
-        transition: transform 0.3s ease;
+        transform: rotate(${angle}deg); /* Tog bort scaleX(-1) då lastbils-emoji oftast pekar rätt */
+        transition: transform 0.5s ease; /* Mjukare rotation */
+        display: flex;
+        justify-content: center;
+        align-items: center;
       ">🚚</div>`,
       iconSize: [30, 30],
       iconAnchor: [15, 15] 
@@ -43,17 +46,22 @@ export function UserLocation() {
   const requestWakeLock = async () => {
     if ('wakeLock' in navigator) {
       try {
+        // @ts-ignore
         wakeLockRef.current = await navigator.wakeLock.request('screen');
       } catch (err) {
-        console.error('Kunde inte aktivera Wake Lock:', err);
+        console.warn('Kunde inte aktivera Wake Lock (kanske ingen HTTPS?):', err);
       }
     }
   };
 
   const releaseWakeLock = async () => {
     if (wakeLockRef.current) {
-      await wakeLockRef.current.release();
-      wakeLockRef.current = null;
+      try {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      } catch (err) {
+        console.warn('Fel vid release av Wake Lock', err);
+      }
     }
   };
 
@@ -63,26 +71,27 @@ export function UserLocation() {
     if (!tracking) {
       // 1. Starta GPS
       setTracking(true);
-      setIsFollowing(true); // Börja följa direkt
+      setIsFollowing(true);
       requestWakeLock();
       
       map.locate({ 
-        setView: false, // Vi sköter centreringen själva nu
-        maxZoom: 16,
-        watch: true,   
-        enableHighAccuracy: false // Ändra till true på mobil!
+        setView: false,
+        maxZoom: 18,     // Zoomar in lite närmare för "kör-känsla"
+        watch: true,     // Viktigt: Lyssna kontinuerligt
+        enableHighAccuracy: true, // VIKTIGT: Tvingar fram GPS-chipet
+        maximumAge: 1000,         // VIKTIGT: Acceptera inte gamla positioner (>1s)
+        timeout: 10000            // Vänta max 10s på fix
       });
     } 
     else {
-      // GPS är igång...
       if (!isFollowing) {
-        // 2. Om vi tappat fokus -> Återcentrera (Följ igen)
+        // 2. Återcentrera
         setIsFollowing(true);
         if (position) {
-            map.flyTo(position, map.getZoom()); // Flyg tillbaka till bilen utan att ändra zoom för mycket
+            map.flyTo(position, 17, { animate: true, duration: 1.0 });
         }
       } else {
-        // 3. Om vi redan följer -> Stäng av allt (Spara batteri)
+        // 3. Stäng av
         setTracking(false);
         setIsFollowing(false);
         setPosition(null);
@@ -101,14 +110,14 @@ export function UserLocation() {
       setPosition([e.latlng.lat, e.latlng.lng]);
       setAccuracy(e.accuracy);
       
+      // Leaflet ger heading (riktning) på mobila enheter
       if (e.heading !== null && !isNaN(e.heading)) {
         setHeading(e.heading);
       }
 
-      // --- MAGIN: Följ bara om isFollowing är sant ---
+      // Följ mjukt om läget är aktivt
       if (isFollowing) {
-        // panTo är mjukare än flyTo för små justeringar
-        map.panTo(e.latlng, { animate: true, duration: 0.5 });
+        map.panTo(e.latlng, { animate: true, duration: 0.8 });
       }
     };
 
@@ -120,26 +129,24 @@ export function UserLocation() {
     map.on('locationerror', handleLocationError);
 
     return () => {
-      map.stopLocate();
       map.off('locationfound', handleLocationFound);
       map.off('locationerror', handleLocationError);
-      releaseWakeLock();
     };
-  }, [map, tracking, isFollowing]); // Notera att isFollowing är med här
+  }, [map, tracking, isFollowing]);
 
-  // Bestäm färg och ikon på knappen baserat på läge
+  // UI
   let btnColor = 'white';
   let btnIcon = '📍';
   let btnTitle = "Hitta min plats";
 
   if (tracking) {
       if (isFollowing) {
-          btnColor = '#4caf50'; // GRÖN = Följer aktivt
-          btnIcon = '🚚';       // Ikon som visar att vi följer bilen
+          btnColor = '#4caf50'; // GRÖN
+          btnIcon = '🚚'; 
           btnTitle = "Följer din plats (Tryck för att stänga av)";
       } else {
-          btnColor = '#ff9800'; // ORANGE = GPS igång, men följer ej (du tittar runt)
-          btnIcon = '🎯';       // Ikon för att "Sikta" tillbaka
+          btnColor = '#ff9800'; // ORANGE
+          btnIcon = '🎯'; 
           btnTitle = "Återcentrera till min plats";
       }
   }
@@ -179,17 +186,16 @@ export function UserLocation() {
                 icon={createTruckIcon(heading)} 
                 zIndexOffset={1000}
             >
-            <Popup>
-                <strong>Här är du!</strong><br/>
-                Noggrannhet: {Math.round(accuracy)} m
-            </Popup>
             </Marker>
             
-            <Circle 
-                center={position} 
-                radius={accuracy} 
-                pathOptions={{ color: '#2196f3', fillColor: '#2196f3', fillOpacity: 0.1, weight: 1, stroke: false }}
-            />
+            {/* Visar bara cirkeln om noggrannheten är sämre än 20m, annars stör den */}
+            {accuracy > 20 && (
+                <Circle 
+                    center={position} 
+                    radius={accuracy} 
+                    pathOptions={{ color: '#2196f3', fillColor: '#2196f3', fillOpacity: 0.1, weight: 1, stroke: false }}
+                />
+            )}
         </>
       )}
     </>
