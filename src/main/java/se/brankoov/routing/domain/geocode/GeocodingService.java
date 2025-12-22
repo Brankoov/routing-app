@@ -68,14 +68,26 @@ public class GeocodingService {
         if (cached.isPresent()) {
             try {
                 // Omvandla JSON-strängen tillbaka till en Java-lista
-                return objectMapper.readValue(cached.get().getJsonResponse(), new TypeReference<List<LatLngLabel>>() {});
+                List<LatLngLabel> cachedResults = objectMapper.readValue(
+                        cached.get().getJsonResponse(),
+                        new TypeReference<List<LatLngLabel>>() {}
+                );
+
+                // FIX: Om cachen returnerar en tom lista, lita inte på den.
+                // Det kan ha varit ett tillfälligt API-fel när den sparades.
+                if (cachedResults != null && !cachedResults.isEmpty()) {
+                    return cachedResults;
+                } else {
+                    log.info("Cached result for '{}' was empty. Retrying API to fix it.", normalizedKey);
+                }
+
             } catch (Exception e) {
                 log.error("Failed to parse cached JSON for key: {}", normalizedKey, e);
                 // Om datan är trasig, fortsätt och hämta nytt från API
             }
         }
 
-        // 2. ANROPA API (Om vi inte hittade i DB)
+        // 2. ANROPA API (Körs nu även om cachen fanns men var tom)
         List<LatLngLabel> freshResults = callOrsApi(query);
 
         // 3. SPARA TILL DATABASEN
@@ -83,7 +95,7 @@ public class GeocodingService {
             // Gör om listan till en JSON-sträng
             String json = objectMapper.writeValueAsString(freshResults);
 
-            // Spara (överskriver om den mot förmodan fanns men var trasig)
+            // Spara (överskriver om den fanns men var trasig/tom)
             cacheRepository.save(new GeocodeCacheEntity(normalizedKey, json));
 
         } catch (Exception e) {
