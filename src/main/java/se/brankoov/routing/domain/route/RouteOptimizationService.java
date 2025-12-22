@@ -63,7 +63,7 @@ public class RouteOptimizationService {
                     lng = maybe.get().lng();
                 }
             }
-            return new StopResponse(s.id(), s.label(), s.address(), lat, lng, 0);
+            return new StopResponse(s.id(), s.label(), s.address(), lat, lng, 0); // Order sätts senare
         }).toList();
 
         // 3. Geokoda Slut
@@ -72,7 +72,7 @@ public class RouteOptimizationService {
                 .orElseThrow(() -> new RuntimeException("Could not geocode end address"));
 
 
-        // 4. Bygg Matrix Request
+        // 4. Bygg Matrix Request (Behövs för tidsberäkning oavsett om vi optimerar eller ej)
         List<List<Double>> matrixRequestCoords = new ArrayList<>();
         matrixRequestCoords.add(List.of(startPos.lng(), startPos.lat()));
         for (StopResponse s : stopsWithCoords) {
@@ -86,46 +86,40 @@ public class RouteOptimizationService {
 
         // 5. Hämta Matris
         double[][] durations = orsMatrixService.getDurations(matrixRequestCoords);
-
         System.out.println("✅ ORS Matrix svarade! Storlek: " + durations.length + "x" + durations[0].length);
 
-        // --- PATCHA MATRISEN ---
-        // OBS: Utkommenterad för stabilitet/cleaner map (aktivera om du vill testa "gå över gatan" igen)
-        // patchMatrixWithWalkingPhysics(durations, stopsWithCoords, startPos, endPos);
-        // -----------------------
+        // 6. Bestäm ordning (Optimera ELLER behåll originalordning)
+        List<StopResponse> finalRouteOrder;
 
-        // 6. Optimera (NN + 2-Opt + Simulated Annealing Multi-Start)
-        System.out.println("Startar optimering...");
+        if (request.optimize()) {
+            // --- KÖR OPTIMERING (TSP + SA) ---
+            System.out.println("Startar optimering...");
+            List<StopResponse> bestRouteSoFar = solveTspNearestNeighbour(stopsWithCoords, durations);
+            bestRouteSoFar = optimizeTwoOpt(bestRouteSoFar, durations, stopsWithCoords);
 
-        // Steg A: Hitta en bra startgissning (Nearest Neighbour + 2-Opt)
-        List<StopResponse> bestRouteSoFar = solveTspNearestNeighbour(stopsWithCoords, durations);
-        bestRouteSoFar = optimizeTwoOpt(bestRouteSoFar, durations, stopsWithCoords);
+            double minDuration = calculateTotalCost(bestRouteSoFar, durations, stopsWithCoords);
+            int ITERATIONS = 50;
+            System.out.println("Kör " + ITERATIONS + " iterationer av Simulated Annealing...");
 
-        double minDuration = calculateTotalCost(bestRouteSoFar, durations, stopsWithCoords);
-
-        // Steg B: MULTI-START SIMULATED ANNEALING
-        // Vi kör algoritmen 50 gånger med olika slumpfrön för att hitta den "sanna" bästa vägen.
-        int ITERATIONS = 50;
-        System.out.println("Kör " + ITERATIONS + " iterationer av Simulated Annealing...");
-
-        for (int i = 0; i < ITERATIONS; i++) {
-            // Skicka in en kopia av rutten för att finputsa
-            List<StopResponse> candidate = solveSimulatedAnnealing(new ArrayList<>(bestRouteSoFar), durations, stopsWithCoords);
-            double cost = calculateTotalCost(candidate, durations, stopsWithCoords);
-
-            if (cost < minDuration) {
-                // System.out.println("Hittade bättre rutt! Förbättring: " + (minDuration - cost) + " sek");
-                minDuration = cost;
-                bestRouteSoFar = new ArrayList<>(candidate);
+            for (int i = 0; i < ITERATIONS; i++) {
+                List<StopResponse> candidate = solveSimulatedAnnealing(new ArrayList<>(bestRouteSoFar), durations, stopsWithCoords);
+                double cost = calculateTotalCost(candidate, durations, stopsWithCoords);
+                if (cost < minDuration) {
+                    minDuration = cost;
+                    bestRouteSoFar = new ArrayList<>(candidate);
+                }
             }
+            finalRouteOrder = bestRouteSoFar;
+        } else {
+            // --- BEHÅLL ORIGINALORDNING ---
+            System.out.println("Hoppar över optimering. Använder originalordning.");
+            finalRouteOrder = new ArrayList<>(stopsWithCoords);
         }
 
-        List<StopResponse> optimizedRoute = bestRouteSoFar;
-
-        // 7. Hämta Geometri
+        // 7. Hämta Geometri (Vägbeskrivning för den valda ordningen)
         List<List<Double>> finalPath = new ArrayList<>();
         finalPath.add(List.of(startPos.lng(), startPos.lat()));
-        for (StopResponse s : optimizedRoute) {
+        for (StopResponse s : finalRouteOrder) {
             finalPath.add(List.of(s.longitude(), s.latitude()));
         }
         finalPath.add(List.of(endPos.lng(), endPos.lat()));
@@ -133,12 +127,12 @@ public class RouteOptimizationService {
         String geometry = orsDirectionsService.getRouteGeometry(finalPath);
 
         // 8. Räkna ut total tid
-        long totalSeconds = calculateTotalDuration(optimizedRoute, durations, stopsWithCoords);
+        long totalSeconds = calculateTotalDuration(finalRouteOrder, durations, stopsWithCoords);
 
-        // 9. Returnera
-        List<StopResponse> finalResult = IntStream.range(0, optimizedRoute.size())
+        // 9. Returnera (Uppdatera ordningsnummer index)
+        List<StopResponse> finalResult = IntStream.range(0, finalRouteOrder.size())
                 .mapToObj(i -> {
-                    var s = optimizedRoute.get(i);
+                    var s = finalRouteOrder.get(i);
                     return new StopResponse(s.id(), s.label(), s.address(), s.latitude(), s.longitude(), i);
                 })
                 .toList();

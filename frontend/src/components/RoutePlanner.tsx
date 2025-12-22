@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   optimizeRoute,
   saveRoute,
@@ -151,8 +151,8 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     setStops((prev) => prev.filter((s) => s.id !== id));
   };
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  // --- NY FUNKTION: Ersätter handleSubmit ---
+  async function handleCalculate(shouldOptimize: boolean) {
     if (!hasEnoughData) {
       setError("Fyll i start, slut och minst ett stopp.");
       setState("error");
@@ -167,11 +167,14 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
       const stopAddresses = stops
         .map((s) => s.address.trim())
         .filter((s) => s.length > 0);
+      
       const response = await optimizeRoute({
         startAddress: startAddress.trim(),
         endAddress: endAddress.trim(),
         stops: stopAddresses,
+        optimize: shouldOptimize, // Här skickar vi flaggan!
       });
+      
       setResult(response);
       setState("ok");
     } catch (err) {
@@ -181,34 +184,29 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     }
   }
 
- async function handleSave() {
+  async function handleSave() {
     if (!routeName.trim()) {
-        setError("Ange ett namn på rutten för att spara.");
-        setState("error");
-        return;
+      setError("Ange ett namn på rutten för att spara.");
+      setState("error");
+      return;
     }
-    // Om man sparar o-optimerat måste man ha fyllt i fälten manuellt
     if (!hasEnoughData) {
-        setError("Du måste ha minst start, slut och ett stopp.");
-        setState("error");
-        return;
+      setError("Du måste ha minst start, slut och ett stopp.");
+      setState("error");
+      return;
     }
 
     const routeIdToSave = routeToLoad ? routeToLoad.id : undefined;
 
-    // Förbered variabler
     let stopsToSave;
     let geometryToSave: string;
     let totalDurationToSave: number;
 
     if (result) {
-        // Om vi har optimerat, använd resultatet
         stopsToSave = result.orderedStops;
-        // FIX: Använd ?? "" och ?? 0 för att garantera att det inte blir undefined
         geometryToSave = result.geometry ?? ""; 
         totalDurationToSave = result.totalDuration ?? 0;
     } else {
-        // O-OPTIMERAT: Spara i den ordning de står i formuläret
         stopsToSave = stops
             .filter(s => s.address.trim().length > 0)
             .map((s, index) => ({
@@ -220,8 +218,8 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                 order: index
             }));
         
-        geometryToSave = ""; // Ingen karta än
-        totalDurationToSave = 0; // Ingen tid än
+        geometryToSave = "";
+        totalDurationToSave = 0;
     }
 
     try {
@@ -416,8 +414,9 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
           </button>
         </div>
 
+        {/* --- ÄNDRAT HÄR: Tog bort onSubmit från formen för att undvika "enter"-submit --- */}
         <form
-          onSubmit={handleSubmit}
+          onSubmit={(e) => e.preventDefault()}
           style={{ display: "grid", gap: "1.2rem", textAlign: "left" }}
         >
           <AutoAddressInput
@@ -514,20 +513,50 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
             onChange={setEndAddress}
           />
 
-          <button
-            type="submit"
-            className="primary-btn"
-            disabled={!hasEnoughData || state === "loading" || state === "saving"}
-            style={{
-              marginTop: "0.5rem",
-              padding: "16px",
-              background: state === "loading" ? "#999" : "#646cff",
-              boxShadow:
-                state === "loading" ? "none" : "0 4px 8px rgba(100, 108, 255, 0.4)",
-            }}
-          >
-            {state === "loading" ? "Beräknar rutt..." : "Optimera Rutt 🚀"}
-          </button>
+          {/* --- NYA KNAPPAR --- */}
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+            
+            {/* KNAPP 1: Visa på karta (Behåll ordning) */}
+            <button 
+              type="button"
+              onClick={() => handleCalculate(false)} // false = Behåll ordning
+              disabled={!hasEnoughData || state === "loading" || state === "saving"}
+              style={{ 
+                flex: 1, 
+                backgroundColor: isDarkMode ? '#444' : '#e0e0e0',
+                color: isDarkMode ? '#fff' : '#000',
+                padding: '16px',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+              }}
+            >
+              {state === "loading" ? 'Laddar...' : '🗺️ Visa på karta'}
+            </button>
+
+            {/* KNAPP 2: Optimera (Kasta om ordning) */}
+            <button 
+              type="button"
+              onClick={() => handleCalculate(true)} // true = Optimera
+              disabled={!hasEnoughData || state === "loading" || state === "saving"}
+              style={{ 
+                flex: 1, 
+                backgroundColor: state === "loading" ? "#999" : "#646cff",
+                color: '#fff',
+                padding: '16px',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: state === "loading" ? "none" : "0 4px 8px rgba(100, 108, 255, 0.4)"
+              }}
+            >
+              {state === "loading" ? 'Optimerar...' : '🚀 Optimera Rutt'}
+            </button>
+
+          </div>
         </form>
 
         {state === "error" && error && (
@@ -537,8 +566,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         )}
       </div>
 
-      {/* --- SPARA-RUTAN LIGGER NU UTANFÖR RESULT-VILLKORET --- */}
-      {/* Visas så fort vi har data att spara (även o-optimerat) */}
+      {/* --- SPARA-RUTAN --- */}
       {hasEnoughData && (
         <div
             className="card"
@@ -550,14 +578,14 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         >
             <h4 style={{marginTop: 0, color: isDarkMode ? '#81c784' : 'green'}}>💾 Spara Rutt</h4>
             <p style={{fontSize: '0.9rem', color: isDarkMode ? '#aaa' : '#666', marginBottom: '1rem'}}>
-                {result ? "Du kan spara den optimerade rutten." : "Du kan spara listan som ett utkast (utan optimering)."}
+                {result ? "Du kan spara den beräknade rutten." : "Du kan spara listan som ett utkast (utan beräkning)."}
             </p>
             <div style={{ display: "flex", gap: "0.5rem" }}>
                 <input
                     type="text"
                     value={routeName}
                     onChange={(e) => setRouteName(e.target.value)}
-                    placeholder="T.ex. Måndagsrundan (Utkast)..."
+                    placeholder="T.ex. Måndagsrundan..."
                     style={{
                     flex: 1,
                     background: isDarkMode ? "#333" : "white",
@@ -598,7 +626,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
               paddingBottom: "10px",
             }}
           >
-            ✅ Optimeringsresultat
+            ✅ Resultat
           </h3>
           <p style={{ color: isDarkMode ? "#aaa" : "#666" }}>
             Totalt antal stopp: {result.totalStops}
@@ -712,9 +740,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
             🏎️ Starta Körning Nu
           </button>
 
-          {/* OBS: Den gamla spara-rutan här inne har jag tagit bort 
-              eftersom vi flyttade ut den så den syns även utan resultat. */}
-
           <div style={{ textAlign: "left", marginBottom: "1rem" }}>
             <h4
               style={{
@@ -726,7 +751,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                 color: isDarkMode ? "#ddd" : "#333",
               }}
             >
-              Optimerad ordning:
+              Ruttordning:
             </h4>
             <ul style={{ paddingLeft: "0", listStyle: "none" }}>
               {result.orderedStops.map((stop) => (

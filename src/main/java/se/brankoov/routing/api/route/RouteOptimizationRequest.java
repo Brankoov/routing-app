@@ -14,5 +14,9 @@ public record RouteOptimizationRequest(
 
         @NotEmpty(message = "stops must not be empty")
         @Valid
-        List<StopRequest> stops
+        List<StopRequest> stops,
+
+        boolean optimize
+
+
 ) {}

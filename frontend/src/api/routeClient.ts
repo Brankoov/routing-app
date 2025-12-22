@@ -84,10 +84,12 @@ export async function optimizeRoute(params: {
   startAddress: string;
   endAddress: string;
   stops: string[];
+  optimize: boolean; // <--- NY PARAMETER
 }): Promise<RouteOptimizationResponse> {
   const body = {
     startAddress: params.startAddress,
     endAddress: params.endAddress,
+    optimize: params.optimize, // <--- SKICKA MED DEN
     stops: params.stops.map((address, index) => ({
       id: String(index + 1),
       label: `Stop ${index + 1}`,
@@ -104,7 +106,7 @@ export async function optimizeRoute(params: {
   });
 
   if (!response.ok) {
-    throw new Error(`Route optimization failed with status ${response.status}`);
+    throw new Error(`Route calculation failed with status ${response.status}`);
   }
 
   return response.json() as Promise<RouteOptimizationResponse>;
