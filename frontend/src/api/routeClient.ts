@@ -42,7 +42,7 @@ export interface SavedRoute {
   geometry?: string;
   totalDuration?: number;
   averageStopDuration?: number;
-  ownerUsername: string; // <--- NYTT: Fixar felet i RoutePlanner
+  ownerUsername: string;
 
   stops: {
     id: number;
@@ -53,7 +53,6 @@ export interface SavedRoute {
   }[];
 }
 
-// --- NY TYP FÖR ADMIN ---
 export interface User {
   id: number;
   username: string;
@@ -80,16 +79,44 @@ export function formatDuration(seconds: number): string {
 
 // --- API ANROP ---
 
+// --- DENNA FUNKTION SAKNADES ---
+export async function searchAddress(query: string): Promise<{ lat: number; lng: number } | null> {
+  if (!query || query.trim().length < 3) return null;
+
+  try {
+    // Vi anropar din backend proxy för geocoding (search)
+    const response = await fetch(`${API_BASE_URL}/api/geocode/search?text=${encodeURIComponent(query)}`, {
+       method: 'GET',
+       headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+
+    // Vi förväntar oss GeoJSON format från ORS (via din backend)
+    // data.features[0].geometry.coordinates är [lng, lat]
+    if (data && data.features && data.features.length > 0) {
+        const [lng, lat] = data.features[0].geometry.coordinates;
+        return { lat, lng };
+    }
+    return null;
+  } catch (err) {
+    console.error("Kunde inte söka adress:", err);
+    return null;
+  }
+}
+
 export async function optimizeRoute(params: {
   startAddress: string;
   endAddress: string;
   stops: string[];
-  optimize: boolean; // <--- NY PARAMETER
+  optimize: boolean;
 }): Promise<RouteOptimizationResponse> {
   const body = {
     startAddress: params.startAddress,
     endAddress: params.endAddress,
-    optimize: params.optimize, // <--- SKICKA MED DEN
+    optimize: params.optimize,
     stops: params.stops.map((address, index) => ({
       id: String(index + 1),
       label: `Stop ${index + 1}`,
@@ -144,13 +171,8 @@ export async function getSavedRoutes(): Promise<SavedRoute[]> {
 
   const routes = await response.json() as SavedRoute[];
   
-  // NYTT: Sortera så att den nyaste (högsta ID:t eller senaste createdAt) kommer först.
   return routes.sort((a, b) => {
-      // Jämför ID:t direkt för enkel och pålitlig sortering (högst ID = nyast)
       return b.id - a.id; 
-      
-      // ALTERNATIVT (Om du vill vara säker på tid):
-      // return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 }
 
@@ -189,7 +211,6 @@ export const toggleUserBan = async (userId: number): Promise<string> => {
   return await response.text();
 };
 
-// Hämta en specifik användares rutter (ADMIN ONLY)
 export const getUserRoutesAdmin = async (username: string): Promise<SavedRoute[]> => {
   const token = localStorage.getItem("jwt_token");
   const response = await fetch(`${API_BASE_URL}/api/admin/users/${username}/routes`, {
