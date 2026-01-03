@@ -241,58 +241,66 @@ public class RouteOptimizationService {
         return cost;
     }
 
-    // --- SIMULATED ANNEALING (Uppdaterade parametrar för Multi-Start) ---
-    private List<StopResponse> solveSimulatedAnnealing(List<StopResponse> currentRoute, double[][] durations, List<StopResponse> originalStops) {
-        List<StopResponse> bestRoute = new ArrayList<>(currentRoute);
-        List<StopResponse> currentSolution = new ArrayList<>(currentRoute);
-
-        double currentCost = calculateTotalCost(currentSolution, durations, originalStops);
-        double bestCost = currentCost;
-
-        // Parametrar justerade för bredare sökning
-        double temperature = 5000.0;
-        double coolingRate = 0.98;
-        double absoluteTemperature = 0.1;
-
-        while (temperature > absoluteTemperature) {
-            int n = currentSolution.size();
-
-            // Slumpa två index
-            int i = (int) (Math.random() * (n - 1));
-            int k = (int) (Math.random() * (n - 1));
-
-            if (i >= k) {
-                int temp = i; i = k; k = temp;
-            }
-            if (i == k) {
-                continue;
+        // --- SIMULATED ANNEALING (FIXAD & SÄKER) ---
+        private List<StopResponse> solveSimulatedAnnealing(List<StopResponse> currentRoute, double[][] durations, List<StopResponse> originalStops) {
+            // 1. SÄKERHETSKOLL: Om listan är för liten, returnera direkt.
+            // Detta förhindrar krascher och onödiga beräkningar.
+            if (currentRoute.size() < 2) {
+                return currentRoute;
             }
 
-            // Utför en slumpmässig 2-opt swap
-            List<StopResponse> newSolution = twoOptSwap(currentSolution, i, k);
-            double newCost = calculateTotalCost(newSolution, durations, originalStops);
+            List<StopResponse> bestRoute = new ArrayList<>(currentRoute);
+            List<StopResponse> currentSolution = new ArrayList<>(currentRoute);
 
-            // Ska vi acceptera?
-            if (newCost < currentCost) {
-                currentSolution = newSolution;
-                currentCost = newCost;
+            double currentCost = calculateTotalCost(currentSolution, durations, originalStops);
+            double bestCost = currentCost;
 
-                if (currentCost < bestCost) {
-                    bestRoute = new ArrayList<>(currentSolution);
-                    bestCost = currentCost;
+            double temperature = 5000.0;
+            double coolingRate = 0.98;
+            double absoluteTemperature = 0.1;
+
+            while (temperature > absoluteTemperature) {
+                int n = currentSolution.size();
+
+                // 2. FIX: Använd * n (inte n-1) för att kunna slumpa fram sista elementet också.
+                int i = (int) (Math.random() * n);
+                int k = (int) (Math.random() * n);
+
+                if (i >= k) {
+                    int temp = i; i = k; k = temp;
                 }
-            } else {
-                double acceptanceProbability = Math.exp((currentCost - newCost) / temperature);
-                if (Math.random() < acceptanceProbability) {
+
+                // 3. KRITISK FIX: Om indexen råkar bli samma...
+                if (i == k) {
+                    temperature *= coolingRate; // ...MÅSTE vi sänka temperaturen ändå!
+                    continue;                   // Annars fastnar vi i en evig loop här.
+                }
+
+                // Utför en slumpmässig 2-opt swap
+                List<StopResponse> newSolution = twoOptSwap(currentSolution, i, k);
+                double newCost = calculateTotalCost(newSolution, durations, originalStops);
+
+                // Ska vi acceptera?
+                if (newCost < currentCost) {
                     currentSolution = newSolution;
                     currentCost = newCost;
-                }
-            }
-            temperature *= coolingRate;
-        }
 
-        return bestRoute;
-    }
+                    if (currentCost < bestCost) {
+                        bestRoute = new ArrayList<>(currentSolution);
+                        bestCost = currentCost;
+                    }
+                } else {
+                    double acceptanceProbability = Math.exp((currentCost - newCost) / temperature);
+                    if (Math.random() < acceptanceProbability) {
+                        currentSolution = newSolution;
+                        currentCost = newCost;
+                    }
+                }
+                temperature *= coolingRate;
+            }
+
+            return bestRoute;
+        }
 
     // --- SAVE ROUTE (UPPDATERAD FÖR ATT HANTERA REDIGERING OCH SÄKERHET) ---
     @Transactional

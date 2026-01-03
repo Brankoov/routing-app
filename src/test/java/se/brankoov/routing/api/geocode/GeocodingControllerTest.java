@@ -3,10 +3,11 @@ package se.brankoov.routing.api.geocode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean; // Notera importen
 import org.springframework.test.web.servlet.MockMvc;
 import se.brankoov.routing.domain.geocode.GeocodingService;
+import se.brankoov.routing.security.CustomUserDetailsService; // <--- Importera din service
+import se.brankoov.routing.security.JwtUtil; // <--- Importera din JwtUtil (om den heter så)
 
 import java.util.Optional;
 
@@ -18,14 +19,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.springframework.security.test.context.support.WithMockUser;
 
 @WebMvcTest(GeocodingController.class)
-@WithMockUser   // <--- Låtsas att alla requests är inloggade
+@WithMockUser
 class GeocodingControllerTest {
 
     @Autowired
     MockMvc mockMvc;
 
+    // --- MOCKS FÖR LOGIK ---
     @MockitoBean
     GeocodingService geocodingService;
+
+    // --- NYA MOCKS FÖR SÄKERHETEN ---
+    // Dessa krävs för att Spring Security ska starta upp utan att krascha
+    @MockitoBean
+    CustomUserDetailsService userDetailsService;
+
+    @MockitoBean
+    JwtUtil jwtUtil; // <-- Lägg till denna om din JwtRequestFilter använder den, annars ta bort raden.
 
     @Test
     void returnsLatLngWhenFound() throws Exception {

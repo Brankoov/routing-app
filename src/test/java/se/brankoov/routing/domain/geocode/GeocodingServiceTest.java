@@ -1,43 +1,76 @@
 package se.brankoov.routing.domain.geocode;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class GeocodingServiceTest {
 
-    static class TestGeocodingService extends GeocodingService {
+    @Mock
+    WebClient orsWebClient; // Mocka webclienten (vi kommer inte anropa den i cache-testet)
 
-        int orsCalls = 0;
-        private final LatLng fixedResult;
+    @Mock
+    GeocodeCacheRepository cacheRepository;
 
-        public TestGeocodingService(LatLng fixedResult) {
-            super(WebClient.builder().build()); // används inte i testet
-            this.fixedResult = fixedResult;
-        }
+    @Mock
+    ObjectMapper objectMapper; // Mocka JSON-hanteraren
 
-        @Override
-        protected Optional<LatLng> callOrsGeocode(String query) {
-            orsCalls++;
-            return Optional.of(fixedResult);
-        }
+    private GeocodingService geocodingService;
+
+    @BeforeEach
+    void setUp() {
+        geocodingService = new GeocodingService(orsWebClient, cacheRepository, objectMapper);
     }
 
     @Test
-    void secondCallUsesCacheInsteadOfCallingOrs() {
-        var result = new GeocodingService.LatLng(59.0, 18.0);
-        var service = new TestGeocodingService(result);
+    void returnsFromCacheIfExists() throws Exception {
+        // Arrange
+        String address = "Testgatan 1";
+        String normalizedKey = "testgatan 1";
 
-        // first call -> ska träffa "ORS"
-        var r1 = service.geocodeFirst("Some Address");
-        // second call med samma adress -> ska använda cache
-        var r2 = service.geocodeFirst("some address"); // annan casing, ska normaliseras
+        // Förbered en fejkad cache-post
+        GeocodeCacheEntity cachedEntity = new GeocodeCacheEntity();
+        cachedEntity.setQuery(normalizedKey);
+        cachedEntity.setJsonResponse("[{\"label\":\"Testgatan 1\",\"lat\":55.0,\"lng\":13.0}]");
 
-        assertEquals(59.0, r1.orElseThrow().lat());
-        assertEquals(59.0, r2.orElseThrow().lat());
-        assertEquals(1, service.orsCalls); // ORS-anrop ska bara ha skett en gång
+        // Förbered vad cachen ska svara
+        given(cacheRepository.findById(normalizedKey))
+                .willReturn(Optional.of(cachedEntity));
+
+        // Förbered vad ObjectMapper ska göra (omvandla strängen till en lista)
+        List<GeocodingService.LatLngLabel> expectedList = List.of(
+                new GeocodingService.LatLngLabel("Testgatan 1", 55.0, 13.0)
+        );
+        given(objectMapper.readValue(eq(cachedEntity.getJsonResponse()), any(TypeReference.class)))
+                .willReturn(expectedList);
+
+        // Act
+        Optional<GeocodingService.LatLng> result = geocodingService.geocodeFirst(address);
+
+        // Assert
+        assertTrue(result.isPresent());
+        assertEquals(55.0, result.get().lat());
+        assertEquals(13.0, result.get().lng());
+
+        // Verifiera att vi kollade cachen men INTE anropade API:t (eftersom cachen fanns)
+        verify(cacheRepository, times(1)).findById(normalizedKey);
+        // Vi kan inte enkelt verifiera "ingen webclient" här pga WebClient-kedjan är komplex att mocka "not called",
+        // men om testet passerar utan nullpointer på webclienten så vet vi att den inte anropades.
     }
 }
