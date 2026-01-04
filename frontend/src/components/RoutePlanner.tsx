@@ -92,13 +92,13 @@ function SortableStopItem({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 5 : "auto", 
-    opacity: isDragging ? 0.5 : 1,   
+    zIndex: isDragging ? 5 : "auto",
+    opacity: isDragging ? 0.5 : 1,
     display: "flex",
     alignItems: "center",
     gap: "0.5rem",
     marginBottom: "0.8rem",
-    touchAction: "none" 
+    touchAction: "none"
   };
 
   return (
@@ -125,9 +125,9 @@ function SortableStopItem({
       
       <div style={{ flex: 1 }}>
         <AutoAddressInput 
-            label="" 
-            value={stop.address} 
-            onChange={onChange} 
+          label="" 
+          value={stop.address} 
+          onChange={onChange} 
         />
       </div>
 
@@ -137,18 +137,18 @@ function SortableStopItem({
         type="button" 
         onClick={onRemove} 
         style={{ 
-            background: isDarkMode ? "#3e2727" : "#ffebee", 
-            color: "#c62828", 
-            borderRadius: "50%", 
-            width: "40px", 
-            height: "40px", 
-            padding: 0, 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "center", 
-            fontSize: "1.2rem", 
-            border: "none",
-            cursor: "pointer"
+          background: isDarkMode ? "#3e2727" : "#ffebee", 
+          color: "#c62828", 
+          borderRadius: "50%", 
+          width: "40px", 
+          height: "40px", 
+          padding: 0, 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          fontSize: "1.2rem", 
+          border: "none",
+          cursor: "pointer"
         }}
       >
         ×
@@ -369,6 +369,17 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
       });
       
       setResult(response);
+
+      // --- NYTT: Uppdatera input-listan så den matchar resultatet och får koordinater ---
+      const sortedStops: StopInput[] = response.orderedStops.map((stop) => ({
+        id: stop.id,
+        address: stop.address,
+        latitude: stop.latitude ?? undefined,
+        longitude: stop.longitude ?? undefined
+      }));
+      setStops(sortedStops);
+      // --------------------------------------------------------------------------------
+
       setState("ok");
     } catch (err) {
       console.error(err);
@@ -383,7 +394,8 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     // Vi använder handleCalculate istället via knapparna
   }
 
-  async function handleSave() {
+  // --- UPPDATERAD SPAR-FUNKTION (STÖDER "SAVE AS NEW") ---
+  async function handleSave(saveAsNew: boolean = false) {
     if (!routeName.trim()) {
         setError("Ange ett namn på rutten för att spara.");
         setState("error");
@@ -394,7 +406,10 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         setState("error");
         return;
     }
-    const routeIdToSave = routeToLoad ? routeToLoad.id : undefined;
+    
+    // OM saveAsNew är true = ID undefined (skapa ny)
+    // OM saveAsNew är false och vi har routeToLoad = ID finns (uppdatera)
+    const routeIdToSave = (routeToLoad && !saveAsNew) ? routeToLoad.id : undefined;
 
     let stopsToSave;
     let geometryToSave: string;
@@ -403,7 +418,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     if (result) {
         stopsToSave = result.orderedStops;
         geometryToSave = result.geometry ?? ""; 
-        // FIX: Använd ?? 0 för att undvika undefined error
         totalDurationToSave = result.totalDuration ?? 0;
     } else {
         stopsToSave = stops
@@ -433,7 +447,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         totalDuration: totalDurationToSave,
         averageStopDuration: stopTime,
       });
-      setSuccessMsg("Rutt sparad! ✅");
+      setSuccessMsg(saveAsNew ? "Sparad som ny rutt! ✅" : "Rutt uppdaterad! ✅");
       setState("ok");
       if (!routeToLoad) setRouteName("");
     } catch (err) {
@@ -617,7 +631,35 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
             </p>
             <div style={{ display: "flex", gap: "0.5rem" }}>
                 <input type="text" value={routeName} onChange={(e) => setRouteName(e.target.value)} placeholder="T.ex. Måndagsrundan..." style={{ flex: 1, background: isDarkMode ? "#333" : "white", color: isDarkMode ? "white" : "black", border: "1px solid #555" }} />
-                <button onClick={handleSave} disabled={!routeName.trim() || state === "saving"} style={{ background: "green", color: "white", whiteSpace: "nowrap" }}>{state === "saving" ? "Sparar..." : "Spara"}</button>
+                
+                {/* UPPDATERAD SPAR-KNAPP LOGIK */}
+                {routeToLoad ? (
+                    <>
+                        <button 
+                            onClick={() => handleSave(false)} 
+                            disabled={!routeName.trim() || state === "saving"} 
+                            style={{ background: "#ff9800", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "0 15px", cursor: "pointer" }}
+                        >
+                            {state === "saving" ? "Sparar..." : "💾 Uppdatera"}
+                        </button>
+                        <button 
+                            onClick={() => handleSave(true)} 
+                            disabled={!routeName.trim() || state === "saving"} 
+                            style={{ background: "#4caf50", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "0 15px", cursor: "pointer" }}
+                        >
+                            {state === "saving" ? "Sparar..." : "🆕 Spara som ny"}
+                        </button>
+                    </>
+                ) : (
+                    <button 
+                        onClick={() => handleSave(false)} 
+                        disabled={!routeName.trim() || state === "saving"} 
+                        style={{ background: "green", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "0 20px", cursor: "pointer" }}
+                    >
+                        {state === "saving" ? "Sparar..." : "Spara"}
+                    </button>
+                )}
+
             </div>
             {successMsg && <p style={{ color: "green", marginTop: "0.5rem", textAlign: "center", fontWeight: "bold" }}>{successMsg}</p>}
         </div>
