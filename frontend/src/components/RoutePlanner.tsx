@@ -12,7 +12,6 @@ import AutoAddressInput from "./AutoAddressInput";
 import { DEMO_ROUTES } from "../data/demoRoute";
 import { BulkImportModal } from "./BulkImportModal";
 
-// --- NYA IMPORTER FÖR DRAG AND DROP ---
 import {
   DndContext,
   closestCenter,
@@ -31,27 +30,13 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-function buildGoogleMapsUrl(stop: {
-  latitude: number | null;
-  longitude: number | null;
-  address: string;
-}) {
-  const baseUrl = "https://www.google.com/maps/dir/?api=1&destination=";
-  const driveMode = "&travelmode=driving";
-
-  if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
-    return `${baseUrl}${stop.latitude},${stop.longitude}${driveMode}`;
-  }
-  const q = encodeURIComponent(stop.address);
-  return `${baseUrl}${q}${driveMode}`;
-}
-
 // --- TYPE DEFINITIONS ---
 type LoadState = "idle" | "loading" | "ok" | "error" | "saving" | "fetching_coords";
 
 type StopInput = {
   id: string;
   address: string;
+  comment?: string; // <--- NYTT: Vi sparar nyckel/kommentar här
   latitude?: number;
   longitude?: number;
 };
@@ -64,12 +49,13 @@ type Props = {
   isDarkMode: boolean;
 };
 
-// --- HJÄLPKOMPONENT: GÖR EN RAD DRAGBAR ---
+// --- SORTABLE ITEM KOMPONENT ---
 function SortableStopItem({
   stop,
   index,
   isDarkMode,
   onChange,
+  onCommentChange, // <--- NY PROP
   onRemove,
   hasCoords
 }: {
@@ -77,6 +63,7 @@ function SortableStopItem({
   index: number;
   isDarkMode: boolean;
   onChange: (val: string) => void;
+  onCommentChange: (val: string) => void; // <--- NY PROP TYP
   onRemove: () => void;
   hasCoords: boolean;
 }) {
@@ -123,12 +110,33 @@ function SortableStopItem({
         {index + 1}
       </span>
       
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <AutoAddressInput 
           label="" 
           value={stop.address} 
           onChange={onChange} 
         />
+        
+        {/* --- NYTT: Fält för Nyckel/Info --- */}
+        <div style={{display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: '2px'}}>
+            <span style={{fontSize: '0.85rem', opacity: 0.7}}>🔑</span>
+            <input 
+                type="text" 
+                placeholder="Nyckelkod / Info..." 
+                value={stop.comment || ""}
+                onChange={(e) => onCommentChange(e.target.value)}
+                style={{
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: isDarkMode ? '1px solid #444' : '1px solid #ccc',
+                    color: isDarkMode ? '#ccc' : '#666',
+                    fontSize: '0.8rem',
+                    padding: '2px 0',
+                    outline: 'none'
+                }}
+            />
+        </div>
       </div>
 
       {hasCoords && <span title="Har koordinater" style={{color: 'green', fontSize: '0.8rem'}}>📍</span>}
@@ -165,7 +173,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
   const [endCoords, setEndCoords] = useState<{lat: number, lng: number} | null>(null);
 
   const [stops, setStops] = useState<StopInput[]>([
-    { id: String(Date.now()), address: "" },
+    { id: String(Date.now()), address: "", comment: "" },
   ]);
 
   const [result, setResult] = useState<RouteOptimizationResponse | null>(null);
@@ -212,6 +220,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         .map((s) => ({
           id: String(Date.now() + Math.random()),
           address: s.address,
+          comment: s.comment, // Ladda in sparad kommentar
           latitude: s.latitude,   
           longitude: s.longitude  
         }));
@@ -222,7 +231,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
           : [{ id: String(Date.now()), address: "" }]
       );
 
-      // Säkrare hantering av totalDuration här nere med (?? 0)
       if (routeToLoad.stops && routeToLoad.stops.length > 0 && routeToLoad.geometry) {
         const reconstructedResult: RouteOptimizationResponse = {
           orderedStops: routeToLoad.stops
@@ -230,6 +238,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
               id: String(s.id),
               label: `Stop ${s.orderIndex + 1}`,
               address: s.address,
+              comment: s.comment, // Ladda in kommentar till resultatet
               latitude: s.latitude,
               longitude: s.longitude,
               order: s.orderIndex,
@@ -237,7 +246,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
             .sort((a, b) => a.order - b.order),
           totalStops: routeToLoad.stops.length,
           geometry: routeToLoad.geometry || "",
-          totalDuration: routeToLoad.totalDuration ?? 0, // FIX: Default till 0
+          totalDuration: routeToLoad.totalDuration ?? 0,
         };
         setResult(reconstructedResult);
       } else {
@@ -256,6 +265,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     const newStops = middlePoints.map((addr) => ({
       id: crypto.randomUUID(),
       address: addr,
+      comment: ""
     }));
     setStops(newStops);
     setResult(null); 
@@ -267,6 +277,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     const newStops = addresses.map((addr) => ({
       id: String(Date.now() + Math.random()),
       address: addr,
+      comment: ""
     }));
     setStops((prev) => {
       if (prev.length === 1 && prev[0].address === "") {
@@ -288,10 +299,31 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     if (result) setResult(null); 
   };
 
+  // --- UPPDATERAD FUNKTION: Synkar både listan OCH kartan ---
+  const handleCommentChange = (id: string, value: string) => {
+    // 1. Uppdatera input-fältet (listan)
+    setStops((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, comment: value } : s))
+    );
+
+    // 2. OM vi har ett resultat (kartan visas), uppdatera det också direkt!
+    if (result) {
+        setResult((prev) => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                orderedStops: prev.orderedStops.map((s) => 
+                    s.id === id ? { ...s, comment: value } : s
+                )
+            };
+        });
+    }
+  };
+
   const addStop = () => {
     setStops((prev) => {
       if (prev.length >= MAX_STOPS) return prev;
-      return [...prev, { id: String(Date.now()), address: "" }];
+      return [...prev, { id: String(Date.now()), address: "", comment: "" }];
     });
   };
 
@@ -300,51 +332,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     if (result) setResult(null);
   };
 
-  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-
-  async function handleFetchMarkers() {
-    if (!hasEnoughData) return;
-    setState("fetching_coords");
-    setError(null);
-
-    try {
-        if (!startCoords && startAddress) {
-            const startRes = await searchAddress(startAddress);
-            if (startRes) setStartCoords({ lat: startRes.lat, lng: startRes.lng });
-        }
-
-        if (!endCoords && endAddress) {
-            const endRes = await searchAddress(endAddress);
-            if (endRes) setEndCoords({ lat: endRes.lat, lng: endRes.lng });
-        }
-
-        const updatedStops = [...stops];
-        let foundCount = 0;
-
-        for (let i = 0; i < updatedStops.length; i++) {
-            const s = updatedStops[i];
-            if (s.latitude && s.longitude) continue;
-
-            if (s.address.trim().length > 0) {
-                await delay(400); 
-                const res = await searchAddress(s.address);
-                if (res) {
-                    updatedStops[i] = { ...s, latitude: res.lat, longitude: res.lng };
-                    foundCount++;
-                }
-            }
-        }
-        setStops(updatedStops);
-        setState("idle");
-        if (foundCount > 0) setSuccessMsg(`Hämtade positioner för ${foundCount} stopp!`);
-    } catch (err) {
-        console.error(err);
-        setError("Ett fel uppstod när koordinater hämtades.");
-        setState("error");
-    }
-  }
-
-  // --- NY FUNKTION: Hanterar både Optimering och "Visa på karta" ---
   async function handleCalculate(shouldOptimize: boolean) {
     if (!hasEnoughData) {
       setError("Fyll i start, slut och minst ett stopp.");
@@ -357,28 +344,32 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     setResult(null);
 
     try {
-      const stopAddresses = stops
-        .map((s) => s.address.trim())
-        .filter((s) => s.length > 0);
+      // Filtrera bort tomma adresser, men skicka med hela objektet (inkl comment)
+      const validStops = stops
+        .filter((s) => s.address.trim().length > 0)
+        .map((s) => ({
+            address: s.address.trim(),
+            comment: s.comment
+        }));
       
       const response = await optimizeRoute({
         startAddress: startAddress.trim(),
         endAddress: endAddress.trim(),
-        stops: stopAddresses,
-        optimize: shouldOptimize, // Skickar flaggan
+        stops: validStops, // Skickar nu objekt
+        optimize: shouldOptimize, 
       });
       
       setResult(response);
 
-      // --- NYTT: Uppdatera input-listan så den matchar resultatet och får koordinater ---
+      // Synka tillbaka resultatet till listan (inklusive koordinater och ev. uppdaterad ordning)
       const sortedStops: StopInput[] = response.orderedStops.map((stop) => ({
         id: stop.id,
         address: stop.address,
+        comment: stop.comment, // Behåll/uppdatera kommentaren från svaret
         latitude: stop.latitude ?? undefined,
         longitude: stop.longitude ?? undefined
       }));
       setStops(sortedStops);
-      // --------------------------------------------------------------------------------
 
       setState("ok");
     } catch (err) {
@@ -388,13 +379,10 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     }
   }
 
-  // --- Ersätter handleSubmit för formuläret ---
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    // Vi använder handleCalculate istället via knapparna
   }
 
-  // --- UPPDATERAD SPAR-FUNKTION (STÖDER "SAVE AS NEW") ---
   async function handleSave(saveAsNew: boolean = false) {
     if (!routeName.trim()) {
         setError("Ange ett namn på rutten för att spara.");
@@ -407,8 +395,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         return;
     }
     
-    // OM saveAsNew är true = ID undefined (skapa ny)
-    // OM saveAsNew är false och vi har routeToLoad = ID finns (uppdatera)
     const routeIdToSave = (routeToLoad && !saveAsNew) ? routeToLoad.id : undefined;
 
     let stopsToSave;
@@ -426,6 +412,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                 id: s.id,
                 label: `Stop ${index + 1}`,
                 address: s.address,
+                comment: s.comment, // Spara kommentaren
                 latitude: s.latitude ?? 0,
                 longitude: s.longitude ?? 0,
                 order: index
@@ -439,7 +426,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
       await saveRoute({
         id: routeIdToSave,
         name: routeName,
-        stops: stopsToSave,
+        stops: stopsToSave, // Skickar med kommentarer här
         description: result ? "Optimized Route" : "Draft Route (Not optimized)",
         startAddress: startAddress,
         endAddress: endAddress,
@@ -464,6 +451,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
             id: s.id,
             label: `Stop ${i+1}`,
             address: s.address,
+            comment: s.comment, // Skicka med till kartan
             latitude: s.latitude!,
             longitude: s.longitude!,
             order: i
@@ -540,7 +528,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
           <button type="button" onClick={() => setShowBulkImport(true)} style={{ background: "#333", color: "white", border: "1px solid #333", padding: "6px 12px", fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "5px", marginLeft: "auto" }}>📋 Klistra in lista</button>
         </div>
 
-        {/* Prevent default submit on form to handle buttons individually */}
         <form onSubmit={(e) => e.preventDefault()} style={{ display: "grid", gap: "1.2rem", textAlign: "left" }}>
           <AutoAddressInput label="Startadress" value={startAddress} onChange={setStartAddress} />
 
@@ -564,6 +551,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                             index={index}
                             isDarkMode={isDarkMode}
                             onChange={(val) => handleStopChange(stop.id, val)}
+                            onCommentChange={(val) => handleCommentChange(stop.id, val)}
                             onRemove={() => removeStop(stop.id)}
                             hasCoords={!!(stop.latitude && stop.longitude)}
                         />
@@ -582,7 +570,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
           <div style={{display: 'flex', gap: '10px', marginTop: '0.5rem'}}>
             <button
                 type="button"
-                onClick={() => handleCalculate(false)} // false = Behåll ordning
+                onClick={() => handleCalculate(false)}
                 disabled={!hasEnoughData || state === "loading" || state === "saving"}
                 style={{
                 flex: 1,
@@ -601,7 +589,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
 
             <button
                 type="button"
-                onClick={() => handleCalculate(true)} // true = Optimera
+                onClick={() => handleCalculate(true)}
                 disabled={!hasEnoughData || state === "loading" || state === "saving"}
                 style={{
                 flex: 1,
@@ -632,7 +620,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
             <div style={{ display: "flex", gap: "0.5rem" }}>
                 <input type="text" value={routeName} onChange={(e) => setRouteName(e.target.value)} placeholder="T.ex. Måndagsrundan..." style={{ flex: 1, background: isDarkMode ? "#333" : "white", color: isDarkMode ? "white" : "black", border: "1px solid #555" }} />
                 
-                {/* UPPDATERAD SPAR-KNAPP LOGIK */}
                 {routeToLoad ? (
                     <>
                         <button 
@@ -673,7 +660,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "20px", background: isDarkMode ? "#2c2c2c" : "#e8f5e9", padding: "15px", borderRadius: "10px" }}>
                   <div>
                     <span style={{ fontSize: "0.9rem", color: isDarkMode ? "#aaa" : "#555" }}>🏎️ Ren körtid:</span>
-                    {/* FIX: Defaulta till 0 om undefined */}
                     <strong style={{ display: "block", fontSize: "1.2rem" }}>{formatDuration(result.totalDuration ?? 0)}</strong>
                   </div>
                   <div>
@@ -685,7 +671,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                   </div>
                   <div style={{ gridColumn: "1 / -1", borderTop: isDarkMode ? "1px solid #444" : "1px solid #ccc", paddingTop: "10px", marginTop: "5px" }}>
                     <span style={{ fontSize: "0.9rem", color: isDarkMode ? "#aaa" : "#555" }}>⏱️ Total arbetstid:</span>
-                    {/* FIX: Defaulta till 0 om undefined */}
                     <strong style={{ display: "block", fontSize: "1.4rem", color: "#1976d2" }}>
                       {formatDuration((result.totalDuration ?? 0) + (result.totalStops * stopTime * 60))}
                     </strong>

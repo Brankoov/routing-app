@@ -19,6 +19,9 @@ public class RouteStopEntity {
     @Column(name = "stop_order") // "order" är ett reserverat ord i SQL, så vi byter namn
     private int orderIndex;
 
+    @Column(length = 100)
+    private String comment;
+
     @ManyToOne
     @JoinColumn(name = "route_id")
     @JsonIgnore
@@ -42,6 +45,8 @@ public class RouteStopEntity {
     public Double getLatitude() { return latitude; }
     public Double getLongitude() { return longitude; }
     public int getOrderIndex() { return orderIndex; }
+    public String getComment() { return comment; }
+    public void setComment(String comment) { this.comment = comment; }
 
     public void setRoute(RouteEntity route) { this.route = route; }
 }

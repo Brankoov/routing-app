@@ -6,5 +6,6 @@ public record StopResponse(
         String address,
         Double latitude,
         Double longitude,
-        int order
+        int order,
+        String comment
 ) {}

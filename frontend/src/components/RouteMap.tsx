@@ -105,10 +105,6 @@ function createNumberedIcon(label: string | number, isCompleted: boolean = false
 }
 
 function getGoogleMapsLink(lat: number, lng: number) {
-  // Använder Googles universella format:
-  // api=1: Aktiverar det nya formatet
-  // destination: Vart vi ska (koordinaterna)
-  // travelmode=driving: Tvingar bil-läge
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
 }
 
@@ -144,6 +140,7 @@ type MapStop = {
     longitude?: number | null;
     order?: number; 
     orderIndex?: number;
+    comment?: string; 
 };
 
 type Props = {
@@ -194,12 +191,26 @@ export default function RouteMap({
                         filter: invert(90%) hue-rotate(180deg) brightness(150%) contrast(130%) grayscale(20%) !important;
                         -webkit-filter: invert(90%) hue-rotate(180deg) brightness(150%) contrast(130%) grayscale(20%) !important;
                     }
+                    /* Styling för kompaktare popup */
+                    .leaflet-popup-content-wrapper {
+                        border-radius: 8px !important;
+                        padding: 0 !important;
+                        overflow: hidden;
+                    }
+                    .leaflet-popup-content {
+                        margin: 0 !important;
+                        width: 200px !important; 
+                    }
+                    .leaflet-container a.leaflet-popup-close-button {
+                        top: 5px;
+                        right: 5px;
+                        color: #555;
+                    }
                 `}
             </style>
 
             <div style={{ 
                 height: isFullscreen ? '100vh' : 350, 
-                // FIX: Ändrat från 100vw till 100% för att undvika scroll i sidled
                 width: '100%', 
                 maxWidth: '100%',
                 position: isFullscreen ? 'fixed' : 'relative',
@@ -226,52 +237,20 @@ export default function RouteMap({
                     />
 
                     <div className="leaflet-top leaflet-right" style={{ marginTop: '130px', marginRight: '10px', pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                        
                         <div className="leaflet-control leaflet-bar" style={{border: 'none'}}>
                             <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowPolyline(!showPolyline);
-                                }}
-                                style={{
-                                    backgroundColor: isDarkMode ? '#333' : 'white',
-                                    color: isDarkMode ? 'white' : 'black',
-                                    border: 'none',
-                                    width: '40px',
-                                    height: '40px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '1.2rem',
-                                    borderRadius: '4px'
-                                }}
+                                onClick={(e) => { e.stopPropagation(); setShowPolyline(!showPolyline); }}
+                                style={{ backgroundColor: isDarkMode ? '#333' : 'white', color: isDarkMode ? 'white' : 'black', border: 'none', width: '40px', height: '40px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', borderRadius: '4px' }}
                                 title={showPolyline ? "Dölj ruttlinje" : "Visa ruttlinje"}
                             >
                                 {showPolyline ? '🛣️' : '🙈'}
                             </button>
                         </div>
-
                         {toggleFullscreen && (
                             <div className="leaflet-control leaflet-bar" style={{border: 'none'}}>
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleFullscreen();
-                                    }}
-                                    style={{
-                                        backgroundColor: isDarkMode ? '#333' : 'white',
-                                        color: isDarkMode ? 'white' : 'black',
-                                        border: 'none',
-                                        width: '40px',
-                                        height: '40px',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '1.2rem',
-                                        borderRadius: '4px'
-                                    }}
+                                    onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+                                    style={{ backgroundColor: isDarkMode ? '#333' : 'white', color: isDarkMode ? 'white' : 'black', border: 'none', width: '40px', height: '40px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', borderRadius: '4px' }}
                                     title={isFullscreen ? "Avsluta helskärm" : "Helskärm"}
                                 >
                                     {isFullscreen ? '🔽' : '⛶'}
@@ -282,35 +261,19 @@ export default function RouteMap({
 
                     {showPolyline && routePath.length > 1 && (
                         <>
-                            <Polyline 
-                                key={`outline-${geometry}`} 
-                                positions={routePath} 
-                                pathOptions={{ 
-                                    color: isDarkMode ? '#000' : 'white', 
-                                    weight: 5, 
-                                    opacity: 0.8,
-                                    lineJoin: 'round',
-                                    lineCap: 'round'
-                                }}
-                            />
-                            <Polyline 
-                                key={`road-${geometry}`}
-                                positions={routePath} 
-                                pathOptions={{ 
-                                    color: isDarkMode ? '#64b5f6' : '#2979ff', 
-                                    weight: 3, 
-                                    opacity: 1,
-                                    lineJoin: 'round',
-                                    lineCap: 'round'
-                                }}
-                            />
+                            <Polyline key={`outline-${geometry}`} positions={routePath} pathOptions={{ color: isDarkMode ? '#000' : 'white', weight: 5, opacity: 0.8, lineJoin: 'round', lineCap: 'round' }} />
+                            <Polyline key={`road-${geometry}`} positions={routePath} pathOptions={{ color: isDarkMode ? '#64b5f6' : '#2979ff', weight: 3, opacity: 1, lineJoin: 'round', lineCap: 'round' }} />
                             <RouteArrows positions={routePath} />
                         </>
                     )}
 
                     {startCoords && (
                         <Marker position={startCoords} icon={createNumberedIcon('S')}>
-                            <Popup><strong>Start:</strong> {startAddress}</Popup>
+                            <Popup>
+                                <div style={{padding: '10px', textAlign: 'center'}}>
+                                    <strong>Start:</strong><br/>{startAddress}
+                                </div>
+                            </Popup>
                         </Marker>
                     )}
 
@@ -327,43 +290,86 @@ export default function RouteMap({
                                 zIndexOffset={isDone ? -100 : 100}
                             >
                                 <Popup>
-                                    <div style={{textAlign: 'center', minWidth: '160px'}}>
-                                        <strong style={{fontSize: '1.1rem'}}>#{orderNum}</strong> {isDone ? "(Klar)" : ""}<br/>
-                                        <p style={{margin: '5px 0 10px 0'}}>{s.address}</p>
-                                        
-                                        <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                                    <div style={{
+                                        display: 'flex', 
+                                        flexDirection: 'column',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'sans-serif'
+                                    }}>
+                                        {/* HEADER */}
+                                        <div style={{
+                                            background: isDone ? '#eee' : '#2979ff', 
+                                            color: isDone ? '#777' : 'white', 
+                                            padding: '8px 10px',
+                                            fontWeight: 'bold',
+                                            borderBottom: '1px solid #ddd',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
+                                        }}>
+                                            <span>Stopp #{orderNum}</span>
+                                            {isDone && <span style={{fontSize: '0.8rem'}}>✅</span>}
+                                        </div>
+
+                                        {/* CONTENT */}
+                                        <div style={{padding: '10px 10px 5px 10px'}}>
+                                            <div style={{fontWeight: '600', marginBottom: '4px', lineHeight: '1.2'}}>
+                                                {s.address}
+                                            </div>
+
+                                            {s.comment && (
+                                                <div style={{
+                                                    background: '#fff3cd', 
+                                                    color: '#856404', 
+                                                    padding: '4px 8px', 
+                                                    borderRadius: '4px', 
+                                                    fontSize: '0.85rem',
+                                                    marginTop: '6px',
+                                                    border: '1px solid #ffeeba'
+                                                }}>
+                                                    🔑 {s.comment}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* FOOTER ACTIONS */}
+                                        <div style={{padding: '8px 10px', display: 'flex', gap: '5px'}}>
                                             <a 
                                                 href={getGoogleMapsLink(s.latitude, s.longitude)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 style={{
-                                                    background: '#4285F4',
-                                                    color: 'white',
+                                                    flex: 1,
+                                                    background: '#f1f3f4',
+                                                    color: '#3c4043',
                                                     textDecoration: 'none',
-                                                    padding: '8px 12px',
+                                                    padding: '6px',
                                                     borderRadius: '4px',
-                                                    fontWeight: 'bold',
-                                                    display: 'block',
-                                                    textAlign: 'center'
+                                                    fontWeight: '600',
+                                                    fontSize: '0.8rem',
+                                                    textAlign: 'center',
+                                                    border: '1px solid #dadce0'
                                                 }}
                                             >
-                                                🗺️ Navigera hit
+                                                🗺️ Nav
                                             </a>
 
                                             {onStopComplete && (
                                                 <button
                                                     onClick={() => onStopComplete(s.id)}
                                                     style={{
+                                                        flex: 1,
                                                         background: isDone ? '#e0e0e0' : '#4caf50',
-                                                        color: isDone ? '#333' : 'white',
-                                                        border: isDone ? '1px solid #ccc' : 'none',
-                                                        padding: '8px 12px',
+                                                        color: isDone ? '#777' : 'white',
+                                                        border: 'none',
+                                                        padding: '6px',
                                                         borderRadius: '4px',
                                                         cursor: 'pointer',
-                                                        fontWeight: 'bold'
+                                                        fontWeight: '600',
+                                                        fontSize: '0.8rem'
                                                     }}
                                                 >
-                                                    {isDone ? '↩️ Ångra' : '✅ Markera klar'}
+                                                    {isDone ? 'Ångra' : 'Klar'}
                                                 </button>
                                             )}
                                         </div>
@@ -375,7 +381,11 @@ export default function RouteMap({
 
                     {endCoords && (
                         <Marker position={endCoords} icon={createNumberedIcon('M')}>
-                            <Popup><strong>Mål:</strong> {endAddress}</Popup>
+                             <Popup>
+                                <div style={{padding: '10px', textAlign: 'center'}}>
+                                    <strong>Mål:</strong><br/>{endAddress}
+                                </div>
+                            </Popup>
                         </Marker>
                     )}
 
