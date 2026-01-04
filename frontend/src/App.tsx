@@ -28,9 +28,9 @@ function App() {
     const token = localStorage.getItem("jwt_token");
     setIsLoggedIn(!!token);
     
-    if (localStorage.getItem("active_route")) {
-        setActiveTab('drive');
-    }
+    //if (localStorage.getItem("active_route")) {
+       // setActiveTab('drive');
+    //}
   }, []);
 
   // --- HELPER FÖR ATT KOLLA ADMIN-ROLL ---
