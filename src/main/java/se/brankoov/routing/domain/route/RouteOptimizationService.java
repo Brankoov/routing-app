@@ -341,4 +341,47 @@ public class RouteOptimizationService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return routeRepository.findAllByOwnerUsername(username);
     }
+
+    // --- NY METOD: DISPATCH / TILLDELA RUTT ---
+    @Transactional
+    public void assignRouteToUser(Long routeId, String targetUsername) {
+        // 1. Hämta originalrutten
+        RouteEntity originalRoute = routeRepository.findById(routeId)
+                .orElseThrow(() -> new RuntimeException("Route not found"));
+
+        // 2. Hämta mottagaren
+        UserEntity targetUser = userRepository.findByUsername(targetUsername)
+                .orElseThrow(() -> new RuntimeException("Target user not found"));
+
+        // 3. Skapa kopian (Nytt ID genereras automatiskt)
+        RouteEntity newRoute = new RouteEntity();
+        newRoute.setOwner(targetUser); // <-- Här byter vi ägare!
+        newRoute.setName(originalRoute.getName() + " (Tilldelad)");
+        newRoute.setDescription(originalRoute.getDescription());
+        newRoute.setStartAddress(originalRoute.getStartAddress());
+        newRoute.setEndAddress(originalRoute.getEndAddress());
+        newRoute.setGeometry(originalRoute.getGeometry());
+        newRoute.setTotalDuration(originalRoute.getTotalDuration());
+        newRoute.setAverageStopDuration(originalRoute.getAverageStopDuration());
+
+        // 4. Kopiera alla stopp (VIKTIGT: Skapa nya objekt så de inte delar ID)
+        if (originalRoute.getStops() != null) {
+            for (RouteStopEntity originalStop : originalRoute.getStops()) {
+                RouteStopEntity newStop = new RouteStopEntity(
+                        originalStop.getLabel(),
+                        originalStop.getAddress(),
+                        originalStop.getLatitude(),
+                        originalStop.getLongitude(),
+                        originalStop.getOrderIndex()
+                );
+                // Kopiera kommentaren/nyckeln också!
+                newStop.setComment(originalStop.getComment());
+
+                newRoute.addStop(newStop);
+            }
+        }
+
+        // 5. Spara kopian
+        routeRepository.save(newRoute);
+    }
 }

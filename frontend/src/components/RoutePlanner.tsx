@@ -11,6 +11,7 @@ import RouteMap from "./RouteMap";
 import AutoAddressInput from "./AutoAddressInput";
 import { DEMO_ROUTES } from "../data/demoRoute";
 import { BulkImportModal } from "./BulkImportModal";
+import { AssignRouteModal } from "./AssignRouteModal"; 
 
 import {
   DndContext,
@@ -36,7 +37,7 @@ type LoadState = "idle" | "loading" | "ok" | "error" | "saving" | "fetching_coor
 type StopInput = {
   id: string;
   address: string;
-  comment?: string; // <--- NYTT: Vi sparar nyckel/kommentar här
+  comment?: string;
   latitude?: number;
   longitude?: number;
 };
@@ -55,7 +56,7 @@ function SortableStopItem({
   index,
   isDarkMode,
   onChange,
-  onCommentChange, // <--- NY PROP
+  onCommentChange,
   onRemove,
   hasCoords
 }: {
@@ -63,7 +64,7 @@ function SortableStopItem({
   index: number;
   isDarkMode: boolean;
   onChange: (val: string) => void;
-  onCommentChange: (val: string) => void; // <--- NY PROP TYP
+  onCommentChange: (val: string) => void;
   onRemove: () => void;
   hasCoords: boolean;
 }) {
@@ -117,7 +118,7 @@ function SortableStopItem({
           onChange={onChange} 
         />
         
-        {/* --- NYTT: Fält för Nyckel/Info --- */}
+        {/* Fält för Nyckel/Info */}
         <div style={{display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: '2px'}}>
             <span style={{fontSize: '0.85rem', opacity: 0.7}}>🔑</span>
             <input 
@@ -184,6 +185,26 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
   const [stopTime, setStopTime] = useState(5);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+  const [routeToAssign, setRouteToAssign] = useState<{id: number, name: string} | null>(null); 
+
+  // --- HÄMTA ROLL FRÅN TOKEN ---
+  let isAdmin = false;
+  try {
+    const token = localStorage.getItem("jwt_token");
+    if (token) {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      
+      const payload = JSON.parse(jsonPayload);
+      isAdmin = payload.role === 'ADMIN';
+    }
+  } catch (e) {
+    console.error("Kunde inte läsa token", e);
+  }
+  // -----------------------------
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -220,7 +241,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         .map((s) => ({
           id: String(Date.now() + Math.random()),
           address: s.address,
-          comment: s.comment, // Ladda in sparad kommentar
+          comment: s.comment,
           latitude: s.latitude,   
           longitude: s.longitude  
         }));
@@ -238,7 +259,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
               id: String(s.id),
               label: `Stop ${s.orderIndex + 1}`,
               address: s.address,
-              comment: s.comment, // Ladda in kommentar till resultatet
+              comment: s.comment,
               latitude: s.latitude,
               longitude: s.longitude,
               order: s.orderIndex,
@@ -299,14 +320,11 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     if (result) setResult(null); 
   };
 
-  // --- UPPDATERAD FUNKTION: Synkar både listan OCH kartan ---
   const handleCommentChange = (id: string, value: string) => {
-    // 1. Uppdatera input-fältet (listan)
     setStops((prev) =>
       prev.map((s) => (s.id === id ? { ...s, comment: value } : s))
     );
 
-    // 2. OM vi har ett resultat (kartan visas), uppdatera det också direkt!
     if (result) {
         setResult((prev) => {
             if (!prev) return null;
@@ -344,7 +362,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     setResult(null);
 
     try {
-      // Filtrera bort tomma adresser, men skicka med hela objektet (inkl comment)
       const validStops = stops
         .filter((s) => s.address.trim().length > 0)
         .map((s) => ({
@@ -355,17 +372,16 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
       const response = await optimizeRoute({
         startAddress: startAddress.trim(),
         endAddress: endAddress.trim(),
-        stops: validStops, // Skickar nu objekt
+        stops: validStops,
         optimize: shouldOptimize, 
       });
       
       setResult(response);
 
-      // Synka tillbaka resultatet till listan (inklusive koordinater och ev. uppdaterad ordning)
       const sortedStops: StopInput[] = response.orderedStops.map((stop) => ({
         id: stop.id,
         address: stop.address,
-        comment: stop.comment, // Behåll/uppdatera kommentaren från svaret
+        comment: stop.comment,
         latitude: stop.latitude ?? undefined,
         longitude: stop.longitude ?? undefined
       }));
@@ -377,10 +393,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
       setError(err instanceof Error ? err.message : "Okänt fel");
       setState("error");
     }
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
   }
 
   async function handleSave(saveAsNew: boolean = false) {
@@ -412,7 +424,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                 id: s.id,
                 label: `Stop ${index + 1}`,
                 address: s.address,
-                comment: s.comment, // Spara kommentaren
+                comment: s.comment,
                 latitude: s.latitude ?? 0,
                 longitude: s.longitude ?? 0,
                 order: index
@@ -426,7 +438,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
       await saveRoute({
         id: routeIdToSave,
         name: routeName,
-        stops: stopsToSave, // Skickar med kommentarer här
+        stops: stopsToSave,
         description: result ? "Optimized Route" : "Draft Route (Not optimized)",
         startAddress: startAddress,
         endAddress: endAddress,
@@ -451,7 +463,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
             id: s.id,
             label: `Stop ${i+1}`,
             address: s.address,
-            comment: s.comment, // Skicka med till kartan
+            comment: s.comment,
             latitude: s.latitude!,
             longitude: s.longitude!,
             order: i
@@ -495,6 +507,15 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         <BulkImportModal
           onImport={handleBulkImport}
           onClose={() => setShowBulkImport(false)}
+        />
+      )}
+
+      {/* --- MODAL FÖR ATT TILLDELA RUTT --- */}
+      {routeToAssign && (
+        <AssignRouteModal 
+            routeId={routeToAssign.id}
+            routeName={routeToAssign.name}
+            onClose={() => setRouteToAssign(null)}
         />
       )}
 
@@ -617,31 +638,67 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
              <p style={{fontSize: '0.9rem', color: isDarkMode ? '#aaa' : '#666', marginBottom: '1rem'}}>
                 {result ? "Du kan spara den beräknade rutten." : "Du kan spara listan som ett utkast (utan beräkning)."}
             </p>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-                <input type="text" value={routeName} onChange={(e) => setRouteName(e.target.value)} placeholder="T.ex. Måndagsrundan..." style={{ flex: 1, background: isDarkMode ? "#333" : "white", color: isDarkMode ? "white" : "black", border: "1px solid #555" }} />
+            
+            {/* CSS-FIX: flexWrap tillagt här för att fixa mobilvyn */}
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                <input 
+                    type="text" 
+                    value={routeName} 
+                    onChange={(e) => setRouteName(e.target.value)} 
+                    placeholder="T.ex. Måndagsrundan..." 
+                    style={{ 
+                        flex: "1 1 200px", // Minst 200px, annars radbrytning
+                        background: isDarkMode ? "#333" : "white", 
+                        color: isDarkMode ? "white" : "black", 
+                        border: "1px solid #555",
+                        padding: "10px",
+                        borderRadius: "4px"
+                    }} 
+                />
                 
                 {routeToLoad ? (
                     <>
                         <button 
                             onClick={() => handleSave(false)} 
                             disabled={!routeName.trim() || state === "saving"} 
-                            style={{ background: "#ff9800", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "0 15px", cursor: "pointer" }}
+                            style={{ 
+                               flex: "1 0 auto",
+                               minWidth: "100px",
+                               background: "#ff9800", 
+                               color: "white", 
+                               whiteSpace: "nowrap", 
+                               border: "none", 
+                               borderRadius: "4px", 
+                               padding: "10px 15px", 
+                               cursor: "pointer" 
+                              }}
                         >
                             {state === "saving" ? "Sparar..." : "💾 Uppdatera"}
                         </button>
                         <button 
                             onClick={() => handleSave(true)} 
                             disabled={!routeName.trim() || state === "saving"} 
-                            style={{ background: "#4caf50", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "0 15px", cursor: "pointer" }}
+                            style={{ flex: "1 0 auto", minWidth: "120px", background: "#4caf50", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "10px 15px", cursor: "pointer" }}
                         >
                             {state === "saving" ? "Sparar..." : "🆕 Spara som ny"}
                         </button>
+                        
+                        {/* --- NYTT: SKICKA RUTT (Admin Only) --- */}
+                        {isAdmin && (
+                            <button 
+                                onClick={() => setRouteToAssign({id: routeToLoad.id, name: routeToLoad.name})}
+                                style={{ flex: "1 0 auto", minWidth: "90px", background: "#9c27b0", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "10px 15px", cursor: "pointer" }}
+                                title="Skicka kopia till annan förare"
+                            >
+                                📲 Skicka
+                            </button>
+                        )}
                     </>
                 ) : (
                     <button 
                         onClick={() => handleSave(false)} 
                         disabled={!routeName.trim() || state === "saving"} 
-                        style={{ background: "green", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "0 20px", cursor: "pointer" }}
+                        style={{ flex: 1, minWidth: "100px", background: "green", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "10px 20px", cursor: "pointer" }}
                     >
                         {state === "saving" ? "Sparar..." : "Spara"}
                     </button>

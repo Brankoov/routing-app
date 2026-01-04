@@ -227,3 +227,16 @@ export const getUserRoutesAdmin = async (username: string): Promise<SavedRoute[]
   }
   return response.json();
 };
+export async function assignRouteToUser(routeId: number, username: string): Promise<void> {
+  const token = localStorage.getItem("jwt_token");
+  const response = await fetch(`${API_BASE_URL}/api/admin/routes/${routeId}/assign/${username}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': token ? `Bearer ${token}` : '',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Kunde inte tilldela rutten.");
+  }
+}
