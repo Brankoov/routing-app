@@ -13,5 +13,6 @@ public record StopRequest(
         String address,
 
         Double latitude,
-        Double longitude
+        Double longitude,
+        String comment
 ) {}

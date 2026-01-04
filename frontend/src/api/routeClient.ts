@@ -7,6 +7,7 @@ export interface StopRequest {
   address: string;
   latitude: number | null;
   longitude: number | null;
+  comment?: string; // <--- NYTT FÄLT
 }
 
 export interface OrderedStop extends StopRequest {
@@ -50,6 +51,7 @@ export interface SavedRoute {
     latitude: number;
     longitude: number;
     orderIndex: number;
+    comment?: string; // <--- NYTT FÄLT I SPARAD RUTT
   }[];
 }
 
@@ -79,12 +81,10 @@ export function formatDuration(seconds: number): string {
 
 // --- API ANROP ---
 
-// --- DENNA FUNKTION SAKNADES ---
 export async function searchAddress(query: string): Promise<{ lat: number; lng: number } | null> {
   if (!query || query.trim().length < 3) return null;
 
   try {
-    // Vi anropar din backend proxy för geocoding (search)
     const response = await fetch(`${API_BASE_URL}/api/geocode/search?text=${encodeURIComponent(query)}`, {
        method: 'GET',
        headers: getAuthHeaders(),
@@ -94,8 +94,6 @@ export async function searchAddress(query: string): Promise<{ lat: number; lng: 
 
     const data = await response.json();
 
-    // Vi förväntar oss GeoJSON format från ORS (via din backend)
-    // data.features[0].geometry.coordinates är [lng, lat]
     if (data && data.features && data.features.length > 0) {
         const [lng, lat] = data.features[0].geometry.coordinates;
         return { lat, lng };
@@ -107,22 +105,26 @@ export async function searchAddress(query: string): Promise<{ lat: number; lng: 
   }
 }
 
+// UPPDATERAD: Tar nu in objekt med address + comment istället för bara strings
 export async function optimizeRoute(params: {
   startAddress: string;
   endAddress: string;
-  stops: string[];
+  stops: { address: string; comment?: string }[]; // <--- ÄNDRAT HÄR
   optimize: boolean;
 }): Promise<RouteOptimizationResponse> {
+  
   const body = {
     startAddress: params.startAddress,
     endAddress: params.endAddress,
     optimize: params.optimize,
-    stops: params.stops.map((address, index) => ({
+    // Mappar om så att comment följer med till backend
+    stops: params.stops.map((stop, index) => ({
       id: String(index + 1),
       label: `Stop ${index + 1}`,
-      address,
+      address: stop.address,
       latitude: null,
       longitude: null,
+      comment: stop.comment || null // <--- SKICKAR KOMMENTAR
     })),
   };
 

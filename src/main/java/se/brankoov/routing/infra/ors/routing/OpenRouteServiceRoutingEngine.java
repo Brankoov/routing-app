@@ -32,7 +32,8 @@ public class OpenRouteServiceRoutingEngine implements RoutingEngine {
                             s.address(),
                             s.latitude(),
                             s.longitude(),
-                            i
+                            i,
+                            s.comment()
                     );
                 })
                 .toList();
