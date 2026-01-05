@@ -2,7 +2,6 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   optimizeRoute,
   saveRoute,
-  searchAddress,
   type RouteOptimizationResponse,
   type SavedRoute,
   formatDuration,
@@ -11,7 +10,7 @@ import RouteMap from "./RouteMap";
 import AutoAddressInput from "./AutoAddressInput";
 import { DEMO_ROUTES } from "../data/demoRoute";
 import { BulkImportModal } from "./BulkImportModal";
-import { AssignRouteModal } from "./AssignRouteModal"; 
+import { AssignRouteModal } from "./AssignRouteModal";
 
 import {
   DndContext,
@@ -32,7 +31,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 // --- TYPE DEFINITIONS ---
-type LoadState = "idle" | "loading" | "ok" | "error" | "saving" | "fetching_coords";
+type LoadState = "idle" | "loading" | "ok" | "error" | "saving" | "fetching_coords" | "finishing";
 
 type StopInput = {
   id: string;
@@ -118,7 +117,6 @@ function SortableStopItem({
           onChange={onChange} 
         />
         
-        {/* Fält för Nyckel/Info */}
         <div style={{display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: '2px'}}>
             <span style={{fontSize: '0.85rem', opacity: 0.7}}>🔑</span>
             <input 
@@ -166,12 +164,162 @@ function SortableStopItem({
   );
 }
 
+// --- LOADING OVERLAY (Dual Mode: Complex or Simple) ---
+const LoadingOverlay = ({ state, isDarkMode, progress }: { state: string, isDarkMode: boolean, progress: number }) => {
+  
+  // Avgör om vi ska visa den tunga spinnern (Optimering) eller den lätta (Spara/Hämta)
+  const isComplexMode = state === "loading" || state === "finishing";
+
+  return (
+    <div className={`custom-loading-overlay ${!isComplexMode ? 'simple-mode' : ''}`}>
+        <style>{`
+            .custom-loading-overlay {
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                width: 100vw;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                /* Default för Complex Mode */
+                background: ${isDarkMode ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.7)"};
+                backdrop-filter: blur(8px);
+                transition: opacity 0.3s ease-out;
+            }
+
+            /* SIMPLE MODE overrides */
+            .custom-loading-overlay.simple-mode {
+                background: rgba(0,0,0,0.3); /* Bara mörka ner lite lätt */
+                backdrop-filter: none;
+            }
+
+            /* --- GYROSCOPE SPINNER (För Optimering) --- */
+            .spinner-box {
+                position: relative;
+                width: 80px;
+                height: 80px;
+                margin-bottom: 25px;
+            }
+            .gyro-ring {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                border-radius: 50%;
+                border: 4px solid transparent;
+                box-sizing: border-box;
+            }
+            .ring-1 {
+                border-top: 4px solid #646cff;
+                animation: spin 1s linear infinite;
+            }
+            .ring-2 {
+                width: 70%;
+                height: 70%;
+                top: 15%;
+                left: 15%;
+                border-bottom: 4px solid #9c27b0;
+                animation: spin 1.5s linear infinite reverse;
+            }
+            .ring-3 {
+                width: 40%;
+                height: 40%;
+                top: 30%;
+                left: 30%;
+                border-top: 4px solid #00e676;
+                animation: spin 2s linear infinite;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            
+            .progress-container {
+                width: 80%;
+                max-width: 300px;
+                height: 8px;
+                background: ${isDarkMode ? "#444" : "#ddd"};
+                border-radius: 4px;
+                overflow: hidden;
+                margin-top: 10px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            }
+            .progress-bar {
+                height: 100%;
+                background: linear-gradient(90deg, #646cff, #00e676);
+                transition: width 0.3s ease-out;
+            }
+
+            /* --- SIMPLE DOT SPINNER (För Spara/Hämta) --- */
+            .simple-dots-container {
+                display: flex;
+                gap: 8px;
+                background: ${isDarkMode ? "#333" : "white"};
+                padding: 15px 25px;
+                border-radius: 30px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                align-items: center;
+            }
+            .dot {
+                width: 12px;
+                height: 12px;
+                background: #646cff;
+                border-radius: 50%;
+                animation: bounce 0.5s alternate infinite;
+            }
+            .dot:nth-child(2) { animation-delay: 0.15s; background: #9c27b0; }
+            .dot:nth-child(3) { animation-delay: 0.3s; background: #00e676; }
+
+            @keyframes bounce {
+                0% { transform: translateY(0); opacity: 0.7; }
+                100% { transform: translateY(-8px); opacity: 1; }
+            }
+            
+            .simple-text {
+                margin-left: 15px;
+                font-weight: 600;
+                color: ${isDarkMode ? "white" : "#333"};
+            }
+        `}</style>
+      
+      {isComplexMode ? (
+        // --- COMPLEX UI (OPTIMIZATION) ---
+        <>
+            <div className="spinner-box">
+                <div className="gyro-ring ring-1"></div>
+                <div className="gyro-ring ring-2"></div>
+                <div className="gyro-ring ring-3"></div>
+            </div>
+
+            <h3 style={{ margin: 0, fontSize: '1.4rem', color: isDarkMode ? "white" : "#333", textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                {state === "finishing" ? "Klar!" : "Optimerar rutt..."}
+            </h3>
+            
+            <div className="progress-container">
+                <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+            </div>
+            <p style={{marginTop: '8px', fontSize: '0.9rem', color: isDarkMode ? "#ccc" : "#555", fontWeight: 'bold'}}>{Math.round(progress)}%</p>
+        </>
+      ) : (
+        // --- SIMPLE UI (SAVING / FETCHING) ---
+        <div className="simple-dots-container">
+            <div className="dot"></div>
+            <div className="dot"></div>
+            <div className="dot"></div>
+            <span className="simple-text">
+                {state === "saving" ? "Sparar..." : "Hämtar..."}
+            </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // --- HUVUDKOMPONENT ---
 export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
   const [startAddress, setStartAddress] = useState("");
-  const [startCoords, setStartCoords] = useState<{lat: number, lng: number} | null>(null);
   const [endAddress, setEndAddress] = useState("");
-  const [endCoords, setEndCoords] = useState<{lat: number, lng: number} | null>(null);
 
   const [stops, setStops] = useState<StopInput[]>([
     { id: String(Date.now()), address: "", comment: "" },
@@ -187,6 +335,9 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [routeToAssign, setRouteToAssign] = useState<{id: number, name: string} | null>(null); 
 
+  // --- PROGRESS BAR STATE ---
+  const [progress, setProgress] = useState(0);
+
   // --- HÄMTA ROLL FRÅN TOKEN ---
   let isAdmin = false;
   try {
@@ -197,14 +348,12 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
       const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
       }).join(''));
-      
       const payload = JSON.parse(jsonPayload);
       isAdmin = payload.role === 'ADMIN';
     }
   } catch (e) {
     console.error("Kunde inte läsa token", e);
   }
-  // -----------------------------
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -212,6 +361,23 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // --- SIMULERA PROGRESS BAR (BARA FÖR OPTIMERING) ---
+  useEffect(() => {
+    let interval: any;
+    // Kör bara simulationen om vi är i "loading"-fas (optimering)
+    if (state === "loading") {
+        setProgress(10); 
+        interval = setInterval(() => {
+            setProgress((prev) => {
+                if (prev >= 85) return prev + 0.1; 
+                if (prev >= 60) return prev + 0.5;
+                return prev + Math.random() * 3;
+            });
+        }, 200);
+    } 
+    return () => clearInterval(interval);
+  }, [state]);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -222,7 +388,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         const newIndex = items.findIndex((item) => item.id === over.id);
         return arrayMove(items, oldIndex, newIndex);
       });
-      
       if(result) {
           setResult(null); 
           setSuccessMsg(null);
@@ -357,6 +522,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
       return;
     }
     setState("loading");
+    setProgress(0);
     setError(null);
     setSuccessMsg(null);
     setResult(null);
@@ -376,6 +542,11 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         optimize: shouldOptimize, 
       });
       
+      // Force 100% and wait for Smooth Finish ONLY for optimization
+      setProgress(100);
+      setState("finishing");
+      await new Promise(resolve => setTimeout(resolve, 600));
+
       setResult(response);
 
       const sortedStops: StopInput[] = response.orderedStops.map((stop) => ({
@@ -408,7 +579,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     }
     
     const routeIdToSave = (routeToLoad && !saveAsNew) ? routeToLoad.id : undefined;
-
     let stopsToSave;
     let geometryToSave: string;
     let totalDurationToSave: number;
@@ -435,6 +605,8 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
 
     try {
       setState("saving");
+      // INGEN PROGRESS BAR HÄR, SÅ VI STRUNTAR I setProgress
+      
       await saveRoute({
         id: routeIdToSave,
         name: routeName,
@@ -446,6 +618,8 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         totalDuration: totalDurationToSave,
         averageStopDuration: stopTime,
       });
+
+      // DIREKT TILL OK (Ingen finishing delay behövs för den enkla spinnern)
       setSuccessMsg(saveAsNew ? "Sparad som ny rutt! ✅" : "Rutt uppdaterad! ✅");
       setState("ok");
       if (!routeToLoad) setRouteName("");
@@ -478,6 +652,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
     borderRadius: "16px",
     marginBottom: "20px",
     transition: "background-color 0.3s",
+    position: 'relative' as 'relative', 
   };
 
   return (
@@ -510,7 +685,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         />
       )}
 
-      {/* --- MODAL FÖR ATT TILLDELA RUTT --- */}
       {routeToAssign && (
         <AssignRouteModal 
             routeId={routeToAssign.id}
@@ -519,21 +693,13 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
         />
       )}
 
-      <div className="card" style={cardStyle}>
-        {state === "loading" && (
-          <div className="loading-overlay" style={{ background: isDarkMode ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.8)" }}>
-            <div className="spinner"></div>
-            <p style={{ fontWeight: "600", color: isDarkMode ? "white" : "#333" }}>Beräknar rutt...</p>
-          </div>
-        )}
-        
-        {state === "fetching_coords" && (
-          <div className="loading-overlay" style={{ background: isDarkMode ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.8)" }}>
-            <div className="spinner"></div>
-            <p style={{ fontWeight: "600", color: isDarkMode ? "white" : "#333" }}>Hämtar positioner...</p>
-          </div>
-        )}
+      {/* --- Global Loading Overlay --- */}
+      {(state === "loading" || state === "fetching_coords" || state === "saving" || state === "finishing") && (
+        <LoadingOverlay state={state} isDarkMode={isDarkMode} progress={progress} />
+      )}
 
+      <div className="card" style={cardStyle}>
+        
         {routeToLoad && (
           <div style={{ marginBottom: "1rem", paddingBottom: "1rem", borderBottom: isDarkMode ? "1px solid #333" : "1px solid #ddd" }}>
             <h3 style={{ marginTop: 0, color: isDarkMode ? "#81c784" : "#4caf50" }}>✏️ Redigerar {routeToLoad.name}</h3>
@@ -639,7 +805,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                 {result ? "Du kan spara den beräknade rutten." : "Du kan spara listan som ett utkast (utan beräkning)."}
             </p>
             
-            {/* CSS-FIX: flexWrap tillagt här för att fixa mobilvyn */}
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
                 <input 
                     type="text" 
@@ -647,7 +812,8 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                     onChange={(e) => setRouteName(e.target.value)} 
                     placeholder="T.ex. Måndagsrundan..." 
                     style={{ 
-                        flex: "1 1 200px", // Minst 200px, annars radbrytning
+                        flex: "2 1 150px",
+                        minWidth: "0",
                         background: isDarkMode ? "#333" : "white", 
                         color: isDarkMode ? "white" : "black", 
                         border: "1px solid #555",
@@ -661,17 +827,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                         <button 
                             onClick={() => handleSave(false)} 
                             disabled={!routeName.trim() || state === "saving"} 
-                            style={{ 
-                               flex: "1 0 auto",
-                               minWidth: "100px",
-                               background: "#ff9800", 
-                               color: "white", 
-                               whiteSpace: "nowrap", 
-                               border: "none", 
-                               borderRadius: "4px", 
-                               padding: "10px 15px", 
-                               cursor: "pointer" 
-                              }}
+                            style={{ flex: "1 0 auto", minWidth: "100px", background: "#ff9800", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "10px 15px", cursor: "pointer" }}
                         >
                             {state === "saving" ? "Sparar..." : "💾 Uppdatera"}
                         </button>
@@ -683,7 +839,6 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                             {state === "saving" ? "Sparar..." : "🆕 Spara som ny"}
                         </button>
                         
-                        {/* --- NYTT: SKICKA RUTT (Admin Only) --- */}
                         {isAdmin && (
                             <button 
                                 onClick={() => setRouteToAssign({id: routeToLoad.id, name: routeToLoad.name})}
@@ -698,7 +853,7 @@ export function RoutePlanner({ routeToLoad, onStartDrive, isDarkMode }: Props) {
                     <button 
                         onClick={() => handleSave(false)} 
                         disabled={!routeName.trim() || state === "saving"} 
-                        style={{ flex: 1, minWidth: "100px", background: "green", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "10px 20px", cursor: "pointer" }}
+                        style={{ flex: "1 0 auto", minWidth: "100px", background: "green", color: "white", whiteSpace: "nowrap", border: "none", borderRadius: "4px", padding: "10px 20px", cursor: "pointer" }}
                     >
                         {state === "saving" ? "Sparar..." : "Spara"}
                     </button>
