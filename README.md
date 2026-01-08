@@ -1,27 +1,23 @@
-**Tech stack**
+## 🛠 Tech Stack
 
-**Backend**
+### Backend
+* Språk: Java 17
+* Ramverk: Spring Boot (Web, Security, Data JPA)
+* Säkerhet: Spring Security (JWT-baserad autentisering)
+* Databas: PostgreSQL (Körs via Docker lokalt, Supabase i produktion)
 
-- Java 17
-- Spring Boot (Web, Security, Data JPA)
-- Spring Security (session/JWT)
-- Flyway (databasmigrationer)
-- PostgreSQL (Docker)
+### Frontend
+* Ramverk: React (byggt med Vite)
+* Karta: Leaflet / React-Leaflet
+* Design: Custom CSS (Mobile First-fokus)
+* HTTP Client: Fetch API / Axios
 
-**Routing & geokodning**
+### Externt API & Routing
+* OpenRouteService (ORS): Används för både geokodning (adress till koordinater) och ruttoptimering (Traveling Salesman Problem).
 
-- OSRM & VROOM (routing och ruttoptimering)
-- Nominatim (geokodning), alla som Docker-containrar
-
-**Frontend**
-
-- React (Vite)
-- Responsiv design
-- Tailwind/MUI (UI-komponenter)
-- React-Leaflet eller MapLibre för kartvisning
-
-**Test & DevOps**
-
-- JUnit 5
-- GitHub + GitHub Projects för versionshantering/planering
-- Docker Compose för att starta hela miljön lokalt
+### DevOps & Drift
+* Versionshantering: GitHub
+* Containerisering: Docker (för databas och backend-miljö)
+* Hosting Backend: Render
+* Hosting Frontend: Vercel
+* Hosting Databas: Supabase
